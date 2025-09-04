@@ -357,16 +357,26 @@ class MainWindow(QtWidgets.QMainWindow):
                 cx = x + w / 2.0
                 cy = y + h / 2.0
                 ang = it.rotation()
+                brush = it.brush()
+                pen = it.pen()
+                attrs = []
+                if brush.style() == QtCore.Qt.BrushStyle.NoBrush:
+                    attrs.append("fill='none'")
+                else:
+                    bcol = brush.color()
+                    attrs.append(f"fill='{bcol.name()}'")
+                    attrs.append(f"fill_opacity={bcol.alphaF():.2f}")
+                attrs.append(f"stroke='{pen.color().name()}'")
+                attrs.append(f"stroke_width={pen.widthF():.2f}")
+                attr_str = ", ".join(attrs)
                 if abs(ang) > 1e-6:
                     lines.append(
                         f"    _rect = draw.Rectangle({x:.2f}, {y:.2f}, {w:.2f}, {h:.2f}, "
-                        f"fill='none', stroke='#222', stroke_width=2, "
-                        f"transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                        f"{attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
                     )
                 else:
                     lines.append(
-                        f"    _rect = draw.Rectangle({x:.2f}, {y:.2f}, {w:.2f}, {h:.2f}, "
-                        f"fill='none', stroke='#222', stroke_width=2)"
+                        f"    _rect = draw.Rectangle({x:.2f}, {y:.2f}, {w:.2f}, {h:.2f}, {attr_str})"
                     )
                 lines.append("    d.append(_rect)")
                 lines.append("")
@@ -382,16 +392,26 @@ class MainWindow(QtWidgets.QMainWindow):
                 cx = x + w / 2.0
                 cy = y + h / 2.0
                 ang = it.rotation()
+                brush = it.brush()
+                pen = it.pen()
+                attrs = []
+                if brush.style() == QtCore.Qt.BrushStyle.NoBrush:
+                    attrs.append("fill='none'")
+                else:
+                    bcol = brush.color()
+                    attrs.append(f"fill='{bcol.name()}'")
+                    attrs.append(f"fill_opacity={bcol.alphaF():.2f}")
+                attrs.append(f"stroke='{pen.color().name()}'")
+                attrs.append(f"stroke_width={pen.widthF():.2f}")
+                attr_str = ", ".join(attrs)
                 if abs(ang) > 1e-6:
                     lines.append(
                         f"    _circ = draw.Circle({cx:.2f}, {cy:.2f}, {radius:.2f}, "
-                        f"fill='none', stroke='#222', stroke_width=2, "
-                        f"transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                        f"{attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
                     )
                 else:
                     lines.append(
-                        f"    _circ = draw.Circle({cx:.2f}, {cy:.2f}, {radius:.2f}, "
-                        f"fill='none', stroke='#222', stroke_width=2)"
+                        f"    _circ = draw.Circle({cx:.2f}, {cy:.2f}, {radius:.2f}, {attr_str})"
                     )
                 lines.append("    d.append(_circ)")
                 lines.append("")
@@ -407,16 +427,16 @@ class MainWindow(QtWidgets.QMainWindow):
                 cx = (x1 + x2) / 2.0
                 cy = (y1 + y2) / 2.0
                 ang = it.rotation()
+                pen = it.pen()
+                attr_str = f"stroke='{pen.color().name()}', stroke_width={pen.widthF():.2f}"
                 if abs(ang) > 1e-6:
                     lines.append(
                         f"    _line = draw.Line({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}, "
-                        f"stroke='#222', stroke_width=2, "
-                        f"transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                        f"{attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
                     )
                 else:
                     lines.append(
-                        f"    _line = draw.Line({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}, "
-                        f"stroke='#222', stroke_width=2)"
+                        f"    _line = draw.Line({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}, {attr_str})"
                     )
                 lines.append("    d.append(_line)")
                 lines.append("")
