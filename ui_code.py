@@ -5,12 +5,13 @@ from PySide6 import QtCore, QtGui, QtWidgets
 #  Helpers / Constants
 # ---------------------------
 PALETTE_MIME = "application/x-drawsvg-shape"
-SHAPES = ("Rectangle", "Circle", "Line")
+SHAPES = ("Rectangle", "Circle", "Line", "Text")
 
 DEFAULTS = {
     "Rectangle": (160.0, 100.0),   # w, h
     "Circle":    (100.0, 100.0),   # diameter, diameter
     "Line":      (150.0, 0.0),     # length, (unused)
+    "Text":      (100.0, 30.0),    # placeholder bbox
 }
 
 PEN_NORMAL = QtGui.QPen(QtGui.QColor("#222"), 2)
@@ -77,6 +78,30 @@ class LineItem(QtWidgets.QGraphicsLineItem):
         super().paint(painter, option, widget)
 
 
+class TextItem(QtWidgets.QGraphicsTextItem):
+    def __init__(self, x, y, w, h):
+        super().__init__("Text")
+        self.setPos(x, y)
+        font = QtGui.QFont()
+        font.setPointSizeF(24.0)
+        self.setFont(font)
+        self.setDefaultTextColor(QtGui.QColor("#222"))
+        self.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextEditorInteraction)
+        self.setFlags(
+            QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+            | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
+            | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges
+            | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsFocusable
+        )
+        br = self.boundingRect()
+        self.setTransformOriginPoint(br.width() / 2.0, br.height() / 2.0)
+
+    def paint(self, painter, option, widget=None):
+        super().paint(painter, option, widget)
+        painter.setPen(PEN_SELECTED if self.isSelected() else PEN_NORMAL)
+        painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+        painter.drawRect(self.boundingRect())
+
 # ---------------------------
 #  Canvas (View + Scene) – zentrale Steuerung von Resize/Rotate
 # ---------------------------
@@ -129,8 +154,10 @@ class CanvasView(QtWidgets.QGraphicsView):
             item = RectItem(x, y, w, h)
         elif shape == "Circle":
             item = EllipseItem(x, y, w, h)
-        else:  # "Line"
+        elif shape == "Line":
             item = LineItem(x, y, w)
+        else:  # "Text"
+            item = TextItem(x, y, w, h)
 
         item.setData(0, shape)  # for export
         self.scene().addItem(item)
@@ -180,6 +207,13 @@ class CanvasView(QtWidgets.QGraphicsView):
                     it._length = max(10.0, it._length * factor)
                     it.setLine(0.0, 0.0, it._length, 0.0)
                     it.setTransformOriginPoint(it._length / 2.0, 0.0)
+                elif isinstance(it, TextItem):
+                    font = it.font()
+                    new_size = max(1.0, font.pointSizeF() * factor)
+                    font.setPointSizeF(new_size)
+                    it.setFont(font)
+                    br = it.boundingRect()
+                    it.setTransformOriginPoint(br.width() / 2.0, br.height() / 2.0)
             event.accept()
             return
 
@@ -195,13 +229,23 @@ class CanvasView(QtWidgets.QGraphicsView):
             return
 
         menu = QtWidgets.QMenu(self)
-        fill_act = opacity_act = None
+        fill_act = opacity_act = stroke_act = width_act = None
+        color_act = size_act = None
         if isinstance(item, (QtWidgets.QGraphicsRectItem, QtWidgets.QGraphicsEllipseItem)):
             fill_act = menu.addAction("Set fill color…")
             opacity_act = menu.addAction("Set fill opacity…")
             menu.addSeparator()
-        stroke_act = menu.addAction("Set stroke color…")
-        width_act = menu.addAction("Set stroke width…")
+            stroke_act = menu.addAction("Set stroke color…")
+            width_act = menu.addAction("Set stroke width…")
+        elif isinstance(item, LineItem):
+            stroke_act = menu.addAction("Set stroke color…")
+            width_act = menu.addAction("Set stroke width…")
+        elif isinstance(item, TextItem):
+            color_act = menu.addAction("Set text color…")
+            size_act = menu.addAction("Set font size…")
+        else:
+            stroke_act = menu.addAction("Set stroke color…")
+            width_act = menu.addAction("Set stroke width…")
         menu.addSeparator()
         back1_act = menu.addAction("Eine Ebene nach hinten")
         front1_act = menu.addAction("Eine Ebene nach vorne")
@@ -234,6 +278,18 @@ class CanvasView(QtWidgets.QGraphicsView):
             if ok:
                 pen.setWidthF(val)
                 item.setPen(pen)
+        elif action == color_act:
+            color = QtWidgets.QColorDialog.getColor(item.defaultTextColor(), self, "Text color")
+            if color.isValid():
+                item.setDefaultTextColor(color)
+        elif action == size_act:
+            font = item.font()
+            val, ok = QtWidgets.QInputDialog.getDouble(self, "Font size", "Size:", font.pointSizeF(), 1.0, 500.0, 1)
+            if ok:
+                font.setPointSizeF(val)
+                item.setFont(font)
+                br = item.boundingRect()
+                item.setTransformOriginPoint(br.width() / 2.0, br.height() / 2.0)
         elif action in (back1_act, front1_act, back_act, front_act):
             scene = self.scene()
             items = [it for it in scene.items() if it.data(0) in SHAPES]
@@ -439,6 +495,31 @@ class MainWindow(QtWidgets.QMainWindow):
                         f"    _line = draw.Line({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}, {attr_str})"
                     )
                 lines.append("    d.append(_line)")
+                lines.append("")
+
+            elif shape == "Text" and isinstance(it, QtWidgets.QGraphicsTextItem):
+                x = it.pos().x()
+                y = it.pos().y()
+                br = it.boundingRect()
+                cx = x + br.width() / 2.0
+                cy = y + br.height() / 2.0
+                ang = it.rotation()
+                font = it.font()
+                size = font.pointSizeF()
+                text = it.toPlainText().replace("'", "\'")
+                color = it.defaultTextColor().name()
+                baseline = y + br.height()
+                attr_str = f"fill='{color}'"
+                if abs(ang) > 1e-6:
+                    lines.append(
+                        f"    _text = draw.Text('{text}', {size:.2f}, {x:.2f}, {baseline:.2f}, "
+                        f"{attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                    )
+                else:
+                    lines.append(
+                        f"    _text = draw.Text('{text}', {size:.2f}, {x:.2f}, {baseline:.2f}, {attr_str})"
+                    )
+                lines.append("    d.append(_text)")
                 lines.append("")
 
         lines.append("    return d")
