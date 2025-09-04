@@ -202,6 +202,11 @@ class CanvasView(QtWidgets.QGraphicsView):
             menu.addSeparator()
         stroke_act = menu.addAction("Set stroke color…")
         width_act = menu.addAction("Set stroke width…")
+        menu.addSeparator()
+        back1_act = menu.addAction("Eine Ebene nach hinten")
+        front1_act = menu.addAction("Eine Ebene nach vorne")
+        back_act = menu.addAction("Ganz nach hinten")
+        front_act = menu.addAction("Ganz nach vorne")
 
         action = menu.exec(event.globalPos())
         if action == fill_act:
@@ -229,6 +234,21 @@ class CanvasView(QtWidgets.QGraphicsView):
             if ok:
                 pen.setWidthF(val)
                 item.setPen(pen)
+        elif action in (back1_act, front1_act, back_act, front_act):
+            scene = self.scene()
+            items = [it for it in scene.items() if it.data(0) in SHAPES]
+            items.sort(key=lambda it: it.zValue())
+            idx = items.index(item)
+            if action == back1_act and idx > 0:
+                items[idx - 1], items[idx] = items[idx], items[idx - 1]
+            elif action == front1_act and idx < len(items) - 1:
+                items[idx + 1], items[idx] = items[idx], items[idx + 1]
+            elif action == back_act:
+                items.insert(0, items.pop(idx))
+            elif action == front_act:
+                items.append(items.pop(idx))
+            for z, it in enumerate(items):
+                it.setZValue(z)
         else:
             super().contextMenuEvent(event)
 
