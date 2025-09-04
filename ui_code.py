@@ -5,12 +5,13 @@ from PySide6 import QtCore, QtGui, QtWidgets
 #  Helpers / Constants
 # ---------------------------
 PALETTE_MIME = "application/x-drawsvg-shape"
-SHAPES = ("Rectangle", "Circle", "Line")
+SHAPES = ("Rectangle", "Circle", "Line", "Text")
 
 DEFAULTS = {
     "Rectangle": (160.0, 100.0),   # w, h
     "Circle":    (100.0, 100.0),   # diameter, diameter
     "Line":      (150.0, 0.0),     # length, (unused)
+    "Text":      (100.0, 30.0),    # placeholder bbox
 }
 
 PEN_NORMAL = QtGui.QPen(QtGui.QColor("#222"), 2)
@@ -77,6 +78,30 @@ class LineItem(QtWidgets.QGraphicsLineItem):
         super().paint(painter, option, widget)
 
 
+class TextItem(QtWidgets.QGraphicsTextItem):
+    def __init__(self, x, y, w, h):
+        super().__init__("Text")
+        self.setPos(x, y)
+        font = QtGui.QFont()
+        font.setPointSizeF(24.0)
+        self.setFont(font)
+        self.setDefaultTextColor(QtGui.QColor("#222"))
+        self.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextEditorInteraction)
+        self.setFlags(
+            QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+            | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
+            | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges
+            | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsFocusable
+        )
+        br = self.boundingRect()
+        self.setTransformOriginPoint(br.width() / 2.0, br.height() / 2.0)
+
+    def paint(self, painter, option, widget=None):
+        super().paint(painter, option, widget)
+        painter.setPen(PEN_SELECTED if self.isSelected() else PEN_NORMAL)
+        painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+        painter.drawRect(self.boundingRect())
+
 # ---------------------------
 #  Canvas (View + Scene) – zentrale Steuerung von Resize/Rotate
 # ---------------------------
@@ -129,8 +154,10 @@ class CanvasView(QtWidgets.QGraphicsView):
             item = RectItem(x, y, w, h)
         elif shape == "Circle":
             item = EllipseItem(x, y, w, h)
-        else:  # "Line"
+        elif shape == "Line":
             item = LineItem(x, y, w)
+        else:  # "Text"
+            item = TextItem(x, y, w, h)
 
         item.setData(0, shape)  # for export
         self.scene().addItem(item)
@@ -140,7 +167,12 @@ class CanvasView(QtWidgets.QGraphicsView):
     # --- Zentrale Mausrad-Logik für alle selektierten Items ---
     def wheelEvent(self, event: QtGui.QWheelEvent):
         mods = event.modifiers()
-        dy = event.angleDelta().y() / 120.0  # Mausrad-Raster
+        # Qt liefert bei gedrückter Alt-Taste oft nur ein horizontales
+        # angleDelta (x) statt y. Damit die Rotation dennoch funktioniert,
+        # verwenden wir die nicht-null Komponente.
+        delta = event.angleDelta()
+        dy = delta.y() if delta.y() else delta.x()
+        dy /= 120.0  # Mausrad-Raster
 
         selected = self.scene().selectedItems()
         if selected and (mods & QtCore.Qt.KeyboardModifier.AltModifier):
@@ -175,11 +207,106 @@ class CanvasView(QtWidgets.QGraphicsView):
                     it._length = max(10.0, it._length * factor)
                     it.setLine(0.0, 0.0, it._length, 0.0)
                     it.setTransformOriginPoint(it._length / 2.0, 0.0)
+                elif isinstance(it, TextItem):
+                    font = it.font()
+                    new_size = max(1.0, font.pointSizeF() * factor)
+                    font.setPointSizeF(new_size)
+                    it.setFont(font)
+                    br = it.boundingRect()
+                    it.setTransformOriginPoint(br.width() / 2.0, br.height() / 2.0)
             event.accept()
             return
 
         # Keine Modifikator-Taste -> Standardverhalten (Scrollen)
         super().wheelEvent(event)
+
+    # --- Kontextmenü zum Anpassen von Farben und Linienbreite ---
+    def contextMenuEvent(self, event: QtGui.QContextMenuEvent):
+        pos = event.pos()
+        item = self.itemAt(pos)
+        if not item:
+            super().contextMenuEvent(event)
+            return
+
+        menu = QtWidgets.QMenu(self)
+        fill_act = opacity_act = stroke_act = width_act = None
+        color_act = size_act = None
+        if isinstance(item, (QtWidgets.QGraphicsRectItem, QtWidgets.QGraphicsEllipseItem)):
+            fill_act = menu.addAction("Set fill color…")
+            opacity_act = menu.addAction("Set fill opacity…")
+            menu.addSeparator()
+            stroke_act = menu.addAction("Set stroke color…")
+            width_act = menu.addAction("Set stroke width…")
+        elif isinstance(item, LineItem):
+            stroke_act = menu.addAction("Set stroke color…")
+            width_act = menu.addAction("Set stroke width…")
+        elif isinstance(item, TextItem):
+            color_act = menu.addAction("Set text color…")
+            size_act = menu.addAction("Set font size…")
+        else:
+            stroke_act = menu.addAction("Set stroke color…")
+            width_act = menu.addAction("Set stroke width…")
+        menu.addSeparator()
+        back1_act = menu.addAction("Eine Ebene nach hinten")
+        front1_act = menu.addAction("Eine Ebene nach vorne")
+        back_act = menu.addAction("Ganz nach hinten")
+        front_act = menu.addAction("Ganz nach vorne")
+
+        action = menu.exec(event.globalPos())
+        if action == fill_act:
+            brush = item.brush()
+            color = QtWidgets.QColorDialog.getColor(brush.color(), self, "Fill color")
+            if color.isValid():
+                item.setBrush(color)
+        elif action == opacity_act:
+            brush = item.brush()
+            start = brush.color().alphaF() if brush.style() != QtCore.Qt.BrushStyle.NoBrush else 1.0
+            val, ok = QtWidgets.QInputDialog.getDouble(self, "Fill opacity", "Opacity:", start, 0.0, 1.0, 2)
+            if ok:
+                color = brush.color()
+                color.setAlphaF(val)
+                item.setBrush(color)
+        elif action == stroke_act:
+            pen = item.pen()
+            color = QtWidgets.QColorDialog.getColor(pen.color(), self, "Stroke color")
+            if color.isValid():
+                pen.setColor(color)
+                item.setPen(pen)
+        elif action == width_act:
+            pen = item.pen()
+            val, ok = QtWidgets.QInputDialog.getDouble(self, "Stroke width", "Width:", pen.widthF(), 0.1, 50.0, 1)
+            if ok:
+                pen.setWidthF(val)
+                item.setPen(pen)
+        elif action == color_act:
+            color = QtWidgets.QColorDialog.getColor(item.defaultTextColor(), self, "Text color")
+            if color.isValid():
+                item.setDefaultTextColor(color)
+        elif action == size_act:
+            font = item.font()
+            val, ok = QtWidgets.QInputDialog.getDouble(self, "Font size", "Size:", font.pointSizeF(), 1.0, 500.0, 1)
+            if ok:
+                font.setPointSizeF(val)
+                item.setFont(font)
+                br = item.boundingRect()
+                item.setTransformOriginPoint(br.width() / 2.0, br.height() / 2.0)
+        elif action in (back1_act, front1_act, back_act, front_act):
+            scene = self.scene()
+            items = [it for it in scene.items() if it.data(0) in SHAPES]
+            items.sort(key=lambda it: it.zValue())
+            idx = items.index(item)
+            if action == back1_act and idx > 0:
+                items[idx - 1], items[idx] = items[idx], items[idx - 1]
+            elif action == front1_act and idx < len(items) - 1:
+                items[idx + 1], items[idx] = items[idx], items[idx + 1]
+            elif action == back_act:
+                items.insert(0, items.pop(idx))
+            elif action == front_act:
+                items.append(items.pop(idx))
+            for z, it in enumerate(items):
+                it.setZValue(z)
+        else:
+            super().contextMenuEvent(event)
 
 
 # ---------------------------
@@ -286,16 +413,26 @@ class MainWindow(QtWidgets.QMainWindow):
                 cx = x + w / 2.0
                 cy = y + h / 2.0
                 ang = it.rotation()
+                brush = it.brush()
+                pen = it.pen()
+                attrs = []
+                if brush.style() == QtCore.Qt.BrushStyle.NoBrush:
+                    attrs.append("fill='none'")
+                else:
+                    bcol = brush.color()
+                    attrs.append(f"fill='{bcol.name()}'")
+                    attrs.append(f"fill_opacity={bcol.alphaF():.2f}")
+                attrs.append(f"stroke='{pen.color().name()}'")
+                attrs.append(f"stroke_width={pen.widthF():.2f}")
+                attr_str = ", ".join(attrs)
                 if abs(ang) > 1e-6:
                     lines.append(
                         f"    _rect = draw.Rectangle({x:.2f}, {y:.2f}, {w:.2f}, {h:.2f}, "
-                        f"fill='none', stroke='#222', stroke_width=2, "
-                        f"transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                        f"{attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
                     )
                 else:
                     lines.append(
-                        f"    _rect = draw.Rectangle({x:.2f}, {y:.2f}, {w:.2f}, {h:.2f}, "
-                        f"fill='none', stroke='#222', stroke_width=2)"
+                        f"    _rect = draw.Rectangle({x:.2f}, {y:.2f}, {w:.2f}, {h:.2f}, {attr_str})"
                     )
                 lines.append("    d.append(_rect)")
                 lines.append("")
@@ -311,16 +448,26 @@ class MainWindow(QtWidgets.QMainWindow):
                 cx = x + w / 2.0
                 cy = y + h / 2.0
                 ang = it.rotation()
+                brush = it.brush()
+                pen = it.pen()
+                attrs = []
+                if brush.style() == QtCore.Qt.BrushStyle.NoBrush:
+                    attrs.append("fill='none'")
+                else:
+                    bcol = brush.color()
+                    attrs.append(f"fill='{bcol.name()}'")
+                    attrs.append(f"fill_opacity={bcol.alphaF():.2f}")
+                attrs.append(f"stroke='{pen.color().name()}'")
+                attrs.append(f"stroke_width={pen.widthF():.2f}")
+                attr_str = ", ".join(attrs)
                 if abs(ang) > 1e-6:
                     lines.append(
                         f"    _circ = draw.Circle({cx:.2f}, {cy:.2f}, {radius:.2f}, "
-                        f"fill='none', stroke='#222', stroke_width=2, "
-                        f"transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                        f"{attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
                     )
                 else:
                     lines.append(
-                        f"    _circ = draw.Circle({cx:.2f}, {cy:.2f}, {radius:.2f}, "
-                        f"fill='none', stroke='#222', stroke_width=2)"
+                        f"    _circ = draw.Circle({cx:.2f}, {cy:.2f}, {radius:.2f}, {attr_str})"
                     )
                 lines.append("    d.append(_circ)")
                 lines.append("")
@@ -336,18 +483,43 @@ class MainWindow(QtWidgets.QMainWindow):
                 cx = (x1 + x2) / 2.0
                 cy = (y1 + y2) / 2.0
                 ang = it.rotation()
+                pen = it.pen()
+                attr_str = f"stroke='{pen.color().name()}', stroke_width={pen.widthF():.2f}"
                 if abs(ang) > 1e-6:
                     lines.append(
                         f"    _line = draw.Line({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}, "
-                        f"stroke='#222', stroke_width=2, "
-                        f"transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                        f"{attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
                     )
                 else:
                     lines.append(
-                        f"    _line = draw.Line({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}, "
-                        f"stroke='#222', stroke_width=2)"
+                        f"    _line = draw.Line({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}, {attr_str})"
                     )
                 lines.append("    d.append(_line)")
+                lines.append("")
+
+            elif shape == "Text" and isinstance(it, QtWidgets.QGraphicsTextItem):
+                x = it.pos().x()
+                y = it.pos().y()
+                br = it.boundingRect()
+                cx = x + br.width() / 2.0
+                cy = y + br.height() / 2.0
+                ang = it.rotation()
+                font = it.font()
+                size = font.pointSizeF()
+                text = it.toPlainText().replace("'", "\'")
+                color = it.defaultTextColor().name()
+                baseline = y + br.height()
+                attr_str = f"fill='{color}'"
+                if abs(ang) > 1e-6:
+                    lines.append(
+                        f"    _text = draw.Text('{text}', {size:.2f}, {x:.2f}, {baseline:.2f}, "
+                        f"{attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                    )
+                else:
+                    lines.append(
+                        f"    _text = draw.Text('{text}', {size:.2f}, {x:.2f}, {baseline:.2f}, {attr_str})"
+                    )
+                lines.append("    d.append(_text)")
                 lines.append("")
 
         lines.append("    return d")
