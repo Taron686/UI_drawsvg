@@ -186,6 +186,52 @@ class CanvasView(QtWidgets.QGraphicsView):
         # Keine Modifikator-Taste -> Standardverhalten (Scrollen)
         super().wheelEvent(event)
 
+    # --- Kontextmenü zum Anpassen von Farben und Linienbreite ---
+    def contextMenuEvent(self, event: QtGui.QContextMenuEvent):
+        pos = event.pos()
+        item = self.itemAt(pos)
+        if not item:
+            super().contextMenuEvent(event)
+            return
+
+        menu = QtWidgets.QMenu(self)
+        fill_act = opacity_act = None
+        if isinstance(item, (QtWidgets.QGraphicsRectItem, QtWidgets.QGraphicsEllipseItem)):
+            fill_act = menu.addAction("Set fill color…")
+            opacity_act = menu.addAction("Set fill opacity…")
+            menu.addSeparator()
+        stroke_act = menu.addAction("Set stroke color…")
+        width_act = menu.addAction("Set stroke width…")
+
+        action = menu.exec(event.globalPos())
+        if action == fill_act:
+            brush = item.brush()
+            color = QtWidgets.QColorDialog.getColor(brush.color(), self, "Fill color")
+            if color.isValid():
+                item.setBrush(color)
+        elif action == opacity_act:
+            brush = item.brush()
+            start = brush.color().alphaF() if brush.style() != QtCore.Qt.BrushStyle.NoBrush else 1.0
+            val, ok = QtWidgets.QInputDialog.getDouble(self, "Fill opacity", "Opacity:", start, 0.0, 1.0, 2)
+            if ok:
+                color = brush.color()
+                color.setAlphaF(val)
+                item.setBrush(color)
+        elif action == stroke_act:
+            pen = item.pen()
+            color = QtWidgets.QColorDialog.getColor(pen.color(), self, "Stroke color")
+            if color.isValid():
+                pen.setColor(color)
+                item.setPen(pen)
+        elif action == width_act:
+            pen = item.pen()
+            val, ok = QtWidgets.QInputDialog.getDouble(self, "Stroke width", "Width:", pen.widthF(), 0.1, 50.0, 1)
+            if ok:
+                pen.setWidthF(val)
+                item.setPen(pen)
+        else:
+            super().contextMenuEvent(event)
+
 
 # ---------------------------
 #  Palette (List mit Drag)
