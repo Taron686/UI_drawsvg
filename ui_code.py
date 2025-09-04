@@ -140,7 +140,12 @@ class CanvasView(QtWidgets.QGraphicsView):
     # --- Zentrale Mausrad-Logik für alle selektierten Items ---
     def wheelEvent(self, event: QtGui.QWheelEvent):
         mods = event.modifiers()
-        dy = event.angleDelta().y() / 120.0  # Mausrad-Raster
+        # Qt liefert bei gedrückter Alt-Taste oft nur ein horizontales
+        # angleDelta (x) statt y. Damit die Rotation dennoch funktioniert,
+        # verwenden wir die nicht-null Komponente.
+        delta = event.angleDelta()
+        dy = delta.y() if delta.y() else delta.x()
+        dy /= 120.0  # Mausrad-Raster
 
         selected = self.scene().selectedItems()
         if selected and (mods & QtCore.Qt.KeyboardModifier.AltModifier):
