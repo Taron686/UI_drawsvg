@@ -160,6 +160,7 @@ class RotationHandle(QtWidgets.QGraphicsPixmapItem):
         self._start_rotation = 0.0
         self._center = QtCore.QPointF()
         self._parent_was_movable = False
+        self._angle_label: QtWidgets.QGraphicsSimpleTextItem | None = None
 
     def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
         parent = self.parentItem()
@@ -176,6 +177,11 @@ class RotationHandle(QtWidgets.QGraphicsPixmapItem):
                 QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False
             )
         self.setCursor(QtCore.Qt.CursorShape.ClosedHandCursor)
+        if parent.scene() and self._angle_label is None:
+            self._angle_label = QtWidgets.QGraphicsSimpleTextItem()
+            self._angle_label.setZValue(1000)
+            parent.scene().addItem(self._angle_label)
+        self._update_label(parent.rotation())
         event.accept()
 
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
@@ -188,7 +194,12 @@ class RotationHandle(QtWidgets.QGraphicsPixmapItem):
         )
         delta = angle - self._start_angle
         parent = self.parentItem()
-        parent.setRotation(self._start_rotation + delta)
+        new_angle = self._start_rotation + delta
+        mods = QtWidgets.QApplication.keyboardModifiers()
+        if not mods & QtCore.Qt.KeyboardModifier.AltModifier:
+            new_angle = round(new_angle / 5.0) * 5.0
+        parent.setRotation(new_angle)
+        self._update_label(parent.rotation())
         if hasattr(parent, "update_handles"):
             parent.update_handles()
         event.accept()
@@ -201,8 +212,23 @@ class RotationHandle(QtWidgets.QGraphicsPixmapItem):
             )
             self._parent_was_movable = False
         self._start_angle = None
+        if self._angle_label and parent.scene():
+            parent.scene().removeItem(self._angle_label)
+        self._angle_label = None
         self.setCursor(QtCore.Qt.CursorShape.OpenHandCursor)
         event.accept()
+
+    def _update_label(self, angle: float) -> None:
+        if not self._angle_label:
+            return
+        self._angle_label.setText(f"{angle:.1f}\N{DEGREE SIGN}")
+        parent = self.parentItem()
+        if not parent:
+            return
+        scene_rect = parent.mapToScene(parent.boundingRect()).boundingRect()
+        pos = QtCore.QPointF(scene_rect.center().x(), scene_rect.bottom() + 5)
+        br = self._angle_label.boundingRect()
+        self._angle_label.setPos(pos.x() - br.width() / 2.0, pos.y())
 
 
 class ResizableItem:
