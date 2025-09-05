@@ -3,9 +3,168 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from constants import PEN_NORMAL, PEN_SELECTED
 
 
-class RectItem(QtWidgets.QGraphicsRectItem):
+HANDLE_COLOR = QtGui.QColor("#14b5ff")
+HANDLE_SIZE = 8.0
+
+
+class ResizeHandle(QtWidgets.QGraphicsEllipseItem):
+    """Small circular handle used for interactive resizing."""
+
+    def __init__(self, parent: QtWidgets.QGraphicsItem, direction: str):
+        super().__init__(-HANDLE_SIZE / 2.0, -HANDLE_SIZE / 2.0, HANDLE_SIZE, HANDLE_SIZE, parent)
+        self.setBrush(HANDLE_COLOR)
+        self.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
+        self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+        self.setFlag(
+            QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemSendsScenePositionChanges, True
+        )
+        self.setCursor(self._cursor_for_direction(direction))
+        self._direction = direction
+        self._start_rect = None
+        self._start_pos = None
+
+    @staticmethod
+    def _cursor_for_direction(direction: str) -> QtCore.Qt.CursorShape:
+        mapping = {
+            "top_left": QtCore.Qt.CursorShape.SizeFDiagCursor,
+            "top_right": QtCore.Qt.CursorShape.SizeBDiagCursor,
+            "bottom_left": QtCore.Qt.CursorShape.SizeBDiagCursor,
+            "bottom_right": QtCore.Qt.CursorShape.SizeFDiagCursor,
+            "left": QtCore.Qt.CursorShape.SizeHorCursor,
+            "right": QtCore.Qt.CursorShape.SizeHorCursor,
+            "top": QtCore.Qt.CursorShape.SizeVerCursor,
+            "bottom": QtCore.Qt.CursorShape.SizeVerCursor,
+        }
+        return mapping[direction]
+
+    def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
+        self._start_pos = event.scenePos()
+        parent = self.parentItem()
+        if isinstance(parent, (QtWidgets.QGraphicsRectItem, QtWidgets.QGraphicsEllipseItem)):
+            self._start_rect = QtCore.QRectF(parent.rect())
+        else:
+            self._start_rect = QtCore.QRectF(parent.boundingRect())
+        self._parent_start_pos = QtCore.QPointF(parent.pos())
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
+        if self._start_pos is None:
+            super().mouseMoveEvent(event)
+            return
+        delta = event.scenePos() - self._start_pos
+        parent = self.parentItem()
+        rect = QtCore.QRectF(self._start_rect)
+        pos = QtCore.QPointF(self._parent_start_pos)
+
+        if "left" in self._direction:
+            rect.setWidth(max(10.0, rect.width() - delta.x()))
+            pos.setX(self._parent_start_pos.x() + delta.x())
+        if "right" in self._direction:
+            rect.setWidth(max(10.0, rect.width() + delta.x()))
+        if "top" in self._direction:
+            rect.setHeight(max(10.0, rect.height() - delta.y()))
+            pos.setY(self._parent_start_pos.y() + delta.y())
+        if "bottom" in self._direction:
+            rect.setHeight(max(10.0, rect.height() + delta.y()))
+
+        if isinstance(parent, QtWidgets.QGraphicsRectItem):
+            parent.setRect(0, 0, rect.width(), rect.height())
+            parent.setTransformOriginPoint(rect.width() / 2.0, rect.height() / 2.0)
+            if hasattr(parent, "rx"):
+                sx = rect.width() / self._start_rect.width() if self._start_rect.width() else 1.0
+                parent.rx *= sx
+            if hasattr(parent, "ry"):
+                sy = rect.height() / self._start_rect.height() if self._start_rect.height() else 1.0
+                parent.ry *= sy
+        elif isinstance(parent, QtWidgets.QGraphicsEllipseItem):
+            parent.setRect(0, 0, rect.width(), rect.height())
+            parent.setTransformOriginPoint(rect.width() / 2.0, rect.height() / 2.0)
+        else:  # fallback for other items using boundingRect
+            br = parent.boundingRect()
+            sx = rect.width() / br.width() if br.width() else 1.0
+            sy = rect.height() / br.height() if br.height() else 1.0
+            parent.setScale(max(sx, sy))
+
+        parent.setPos(pos)
+        if hasattr(parent, "update_handles"):
+            parent.update_handles()
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
+        self._start_pos = None
+        self._start_rect = None
+        super().mouseReleaseEvent(event)
+
+
+class ResizableItem:
+    """Mixin providing 8-direction resize handles for graphics items."""
+
+    def __init__(self):
+        super().__init__()
+        self._handles = []
+
+    def _ensure_handles(self):
+        if self._handles:
+            return
+        directions = [
+            "top_left",
+            "top",
+            "top_right",
+            "right",
+            "bottom_right",
+            "bottom",
+            "bottom_left",
+            "left",
+        ]
+        for d in directions:
+            h = ResizeHandle(self, d)
+            h.hide()
+            self._handles.append(h)
+
+    def update_handles(self):
+        self._ensure_handles()
+        rect = self.boundingRect()
+        points = [
+            rect.topLeft(),
+            QtCore.QPointF(rect.center().x(), rect.top()),
+            rect.topRight(),
+            QtCore.QPointF(rect.right(), rect.center().y()),
+            rect.bottomRight(),
+            QtCore.QPointF(rect.center().x(), rect.bottom()),
+            rect.bottomLeft(),
+            QtCore.QPointF(rect.left(), rect.center().y()),
+        ]
+        for pt, h in zip(points, self._handles):
+            h.setPos(pt)
+
+    def show_handles(self):
+        self.update_handles()
+        for h in self._handles:
+            h.show()
+
+    def hide_handles(self):
+        for h in self._handles:
+            h.hide()
+
+    def itemChange(self, change, value):  # type: ignore[override]
+        if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
+            if value:
+                self.show_handles()
+            else:
+                self.hide_handles()
+        elif change in (
+            QtWidgets.QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged,
+            QtWidgets.QGraphicsItem.GraphicsItemChange.ItemTransformHasChanged,
+        ):
+            if self.isSelected():
+                self.update_handles()
+        return super().itemChange(change, value)  # type: ignore[misc]
+
+
+class RectItem(ResizableItem, QtWidgets.QGraphicsRectItem):
     def __init__(self, x, y, w, h, rx: float = 0.0, ry: float = 0.0):
-        super().__init__(0, 0, w, h)
+        QtWidgets.QGraphicsRectItem.__init__(self, 0, 0, w, h)
+        ResizableItem.__init__(self)
         self.setPos(x, y)
         self.setTransformOriginPoint(w / 2.0, h / 2.0)
         self.setFlags(
@@ -37,9 +196,10 @@ class RectItem(QtWidgets.QGraphicsRectItem):
             painter.restore()
 
 
-class EllipseItem(QtWidgets.QGraphicsEllipseItem):
+class EllipseItem(ResizableItem, QtWidgets.QGraphicsEllipseItem):
     def __init__(self, x, y, w, h):
-        super().__init__(0, 0, w, h)
+        QtWidgets.QGraphicsEllipseItem.__init__(self, 0, 0, w, h)
+        ResizableItem.__init__(self)
         self.setPos(x, y)
         self.setTransformOriginPoint(w / 2.0, h / 2.0)
         self.setFlags(
