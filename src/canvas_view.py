@@ -144,12 +144,16 @@ class CanvasView(QtWidgets.QGraphicsView):
         front_act = menu.addAction("Ganz nach vorne")
 
         action = menu.exec(event.globalPos())
-        if action == fill_act:
+        if not action:
+            super().contextMenuEvent(event)
+            return
+
+        if action is fill_act:
             brush = item.brush()
             color = QtWidgets.QColorDialog.getColor(brush.color(), self, "Fill color")
             if color.isValid():
                 item.setBrush(color)
-        elif action == opacity_act:
+        elif action is opacity_act:
             brush = item.brush()
             start = brush.color().alphaF() if brush.style() != QtCore.Qt.BrushStyle.NoBrush else 1.0
             val, ok = QtWidgets.QInputDialog.getDouble(self, "Fill opacity", "Opacity:", start, 0.0, 1.0, 2)
@@ -157,23 +161,23 @@ class CanvasView(QtWidgets.QGraphicsView):
                 color = brush.color()
                 color.setAlphaF(val)
                 item.setBrush(color)
-        elif action == stroke_act:
+        elif action is stroke_act:
             pen = item.pen()
             color = QtWidgets.QColorDialog.getColor(pen.color(), self, "Stroke color")
             if color.isValid():
                 pen.setColor(color)
                 item.setPen(pen)
-        elif action == width_act:
+        elif action is width_act:
             pen = item.pen()
             val, ok = QtWidgets.QInputDialog.getDouble(self, "Stroke width", "Width:", pen.widthF(), 0.1, 50.0, 1)
             if ok:
                 pen.setWidthF(val)
                 item.setPen(pen)
-        elif action == color_act:
+        elif action is color_act:
             color = QtWidgets.QColorDialog.getColor(item.defaultTextColor(), self, "Text color")
             if color.isValid():
                 item.setDefaultTextColor(color)
-        elif action == size_act:
+        elif action is size_act:
             font = item.font()
             val, ok = QtWidgets.QInputDialog.getDouble(self, "Font size", "Size:", font.pointSizeF(), 1.0, 500.0, 1)
             if ok:
