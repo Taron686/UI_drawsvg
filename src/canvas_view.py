@@ -137,6 +137,17 @@ class CanvasView(QtWidgets.QGraphicsView):
 
         super().wheelEvent(event)
 
+    # --- Keyboard shortcut to delete selected items ---
+    def keyPressEvent(self, event: QtGui.QKeyEvent):
+        if event.key() == QtCore.Qt.Key.Key_Delete:
+            selected = self.scene().selectedItems()
+            if selected:
+                for it in selected:
+                    self.scene().removeItem(it)
+                event.accept()
+                return
+        super().keyPressEvent(event)
+
     # --- Context menu for adjusting colors and line width ---
     def contextMenuEvent(self, event: QtGui.QContextMenuEvent):
         pos = event.pos()

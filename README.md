@@ -34,5 +34,6 @@ python src/main.py
 * **Context menu:** Right-click an object to modify colors, line width or text size.
 * **Export/Import:** Use the `File` menu to export scenes as `drawsvg` Python files or load them back again.
 * **Clear canvas:** Remove all objects via `Edit` → `Clear canvas`.
+* **Delete objects:** Press the `Delete` key to remove selected items.
 
 
