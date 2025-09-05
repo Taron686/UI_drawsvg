@@ -136,7 +136,10 @@ class CanvasView(QtWidgets.QGraphicsView):
 
     # --- Duplicate selected items with Ctrl+drag ---
     def mousePressEvent(self, event: QtGui.QMouseEvent):
-        if event.button() == QtCore.Qt.MouseButton.MiddleButton:
+        if event.button() == QtCore.Qt.MouseButton.MiddleButton or (
+            event.button() == QtCore.Qt.MouseButton.RightButton
+            and event.modifiers() & QtCore.Qt.KeyboardModifier.AltModifier
+        ):
             self._panning = True
             self._pan_start = event.position()
             self._prev_drag_mode = self.dragMode()
@@ -210,7 +213,11 @@ class CanvasView(QtWidgets.QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
-        if event.button() == QtCore.Qt.MouseButton.MiddleButton and self._panning:
+        if (
+            self._panning
+            and event.button()
+            in (QtCore.Qt.MouseButton.MiddleButton, QtCore.Qt.MouseButton.RightButton)
+        ):
             self._panning = False
             self.setDragMode(self._prev_drag_mode)
             self.viewport().setCursor(QtCore.Qt.CursorShape.ArrowCursor)
