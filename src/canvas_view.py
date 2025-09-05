@@ -51,7 +51,9 @@ class CanvasView(QtWidgets.QGraphicsView):
         scene.setSceneRect(0, 0, A4_WIDTH, A4_HEIGHT)
         self.setScene(scene)
         self.setBackgroundBrush(QtGui.QColor("#bfbfbf"))
-        self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        # Disable automatic centering so the view can be panned freely with the
+        # mouse. We'll center the initial page manually after updating bounds.
+        self.setAlignment(QtCore.Qt.AlignmentFlag(0))
         self._grid_size = 20
         scene.changed.connect(self._update_canvas_bounds)
         self._update_canvas_bounds()
