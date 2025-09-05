@@ -1,30 +1,26 @@
-# DrawSVG Benutzeroberfläche
+# DrawSVG UI
 
-Dieses Projekt stellt eine einfache grafische Oberfläche zum Zeichnen von SVG-Formen mit [PySide6](https://doc.qt.io/qtforpython/) bereit.\
-Sie können verschiedene Objekte über die Palette per Drag & Drop auf die Zeichenfläche ziehen und dort anpassen.
+This project provides a simple graphical interface for drawing SVG shapes with [PySide6](https://doc.qt.io/qtforpython/). Drag and drop objects from the palette onto the canvas and adjust them as needed.
 
-## Möglichkeiten der UI
-* **Formen anlegen:** Rechtecke, Kreise, Linien und Text aus der Palette auf die Leinwand ziehen.
-* **Anpassen per Maus:**
-  * `Strg` + Mausrad verändert die Größe selektierter Objekte.
-  * `Alt` + Mausrad rotiert selektierte Objekte.
-* **Kontextmenü:** Rechtsklick auf ein Objekt erlaubt das Ändern von Farben, Linienbreite sowie Textgröße.
-* **Export/Import:** Im Menü `Datei` können Szenen als `drawsvg`-Python-Dateien exportiert oder wieder geladen werden.
-* **Canvas löschen:** Über `Edit` → `Canvas delete` lassen sich alle Objekte entfernen.
+## UI Features
+* **Create shapes:** Drag rectangles, circles, lines and text from the palette onto the canvas.
+* **Mouse adjustments:**
+  * `Ctrl` + mouse wheel changes the size of selected objects.
+  * `Alt` + mouse wheel rotates selected objects.
+* **Context menu:** Right-click an object to modify colors, line width or text size.
+* **Export/Import:** Use the `File` menu to export scenes as `drawsvg` Python files or load them back again.
+* **Clear canvas:** Remove all objects via `Edit` → `Canvas delete`.
 
-## Voraussetzungen
-Zur Ausführung wird **Python 3.10** benötigt. Die benötigten Pakete befinden sich in der Datei `requirements.txt` und lassen sich mit:
+## Requirements
+The application requires **Python 3.10**. Install the dependencies listed in `requirements.txt` with:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-installieren.
-
-## Starten der Anwendung
-Nach der Installation der Abhängigkeiten kann die Anwendung mit folgendem Befehl gestartet werden:
+## Running the Application
+After installing the dependencies, start the application with:
 
 ```bash
 python src/main.py
 ```
-
