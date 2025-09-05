@@ -161,6 +161,7 @@ class RotationHandle(QtWidgets.QGraphicsPixmapItem):
         self._center = QtCore.QPointF()
         self._parent_was_movable = False
         self._angle_label: QtWidgets.QGraphicsSimpleTextItem | None = None
+        self._angle_label_bg: QtWidgets.QGraphicsRectItem | None = None
 
     def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
         parent = self.parentItem()
@@ -177,10 +178,18 @@ class RotationHandle(QtWidgets.QGraphicsPixmapItem):
                 QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False
             )
         self.setCursor(QtCore.Qt.CursorShape.ClosedHandCursor)
-        if parent.scene() and self._angle_label is None:
-            self._angle_label = QtWidgets.QGraphicsSimpleTextItem()
-            self._angle_label.setZValue(1000)
-            parent.scene().addItem(self._angle_label)
+        if parent.scene():
+            scene = parent.scene()
+            if self._angle_label is None:
+                self._angle_label = QtWidgets.QGraphicsSimpleTextItem()
+                self._angle_label.setZValue(1001)
+                scene.addItem(self._angle_label)
+            if self._angle_label_bg is None:
+                self._angle_label_bg = QtWidgets.QGraphicsRectItem()
+                self._angle_label_bg.setBrush(QtGui.QColor(220, 220, 220))
+                self._angle_label_bg.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
+                self._angle_label_bg.setZValue(1000)
+                scene.addItem(self._angle_label_bg)
         self._update_label(parent.rotation())
         event.accept()
 
@@ -212,9 +221,14 @@ class RotationHandle(QtWidgets.QGraphicsPixmapItem):
             )
             self._parent_was_movable = False
         self._start_angle = None
-        if self._angle_label and parent.scene():
-            parent.scene().removeItem(self._angle_label)
+        if parent.scene():
+            scene = parent.scene()
+            if self._angle_label:
+                scene.removeItem(self._angle_label)
+            if self._angle_label_bg:
+                scene.removeItem(self._angle_label_bg)
         self._angle_label = None
+        self._angle_label_bg = None
         self.setCursor(QtCore.Qt.CursorShape.OpenHandCursor)
         event.accept()
 
@@ -229,6 +243,15 @@ class RotationHandle(QtWidgets.QGraphicsPixmapItem):
         pos = QtCore.QPointF(scene_rect.center().x(), scene_rect.bottom() + 5)
         br = self._angle_label.boundingRect()
         self._angle_label.setPos(pos.x() - br.width() / 2.0, pos.y())
+        if self._angle_label_bg:
+            padding = 2.0
+            rect = QtCore.QRectF(
+                self._angle_label.pos().x() - padding,
+                self._angle_label.pos().y() - padding,
+                br.width() + 2 * padding,
+                br.height() + 2 * padding,
+            )
+            self._angle_label_bg.setRect(rect)
 
 
 class ResizableItem:
