@@ -10,6 +10,19 @@ HANDLE_SIZE = 8.0
 HANDLE_OFFSET = 10.0
 
 
+def snap_to_grid(item: QtWidgets.QGraphicsItem, pos: QtCore.QPointF) -> QtCore.QPointF:
+    """Return pos aligned to the view's grid, if available."""
+    scene = item.scene()
+    if scene:
+        views = scene.views()
+        if views:
+            size = getattr(views[0], "_grid_size", 20)
+            x = round(pos.x() / size) * size
+            y = round(pos.y() / size) * size
+            return QtCore.QPointF(x, y)
+    return pos
+
+
 class ResizeHandle(QtWidgets.QGraphicsEllipseItem):
     """Small circular handle used for interactive resizing."""
 
@@ -257,7 +270,11 @@ class ResizableItem:
             self._rotation_handle.hide()
 
     def itemChange(self, change, value):  # type: ignore[override]
-        if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
+        if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemPositionChange:
+            mods = QtWidgets.QApplication.keyboardModifiers()
+            if not mods & QtCore.Qt.KeyboardModifier.AltModifier:
+                value = snap_to_grid(self, value)
+        elif change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
             if value:
                 self.show_handles()
             else:
@@ -485,7 +502,11 @@ class LineItem(QtWidgets.QGraphicsLineItem):
         self._end_handle.hide()
 
     def itemChange(self, change, value):  # type: ignore[override]
-        if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
+        if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemPositionChange:
+            mods = QtWidgets.QApplication.keyboardModifiers()
+            if not mods & QtCore.Qt.KeyboardModifier.AltModifier:
+                value = snap_to_grid(self, value)
+        elif change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
             if value:
                 self.show_handles()
             else:
@@ -525,6 +546,13 @@ class TextItem(QtWidgets.QGraphicsTextItem):
         )
         br = self.boundingRect()
         self.setTransformOriginPoint(br.width() / 2.0, br.height() / 2.0)
+
+    def itemChange(self, change, value):  # type: ignore[override]
+        if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemPositionChange:
+            mods = QtWidgets.QApplication.keyboardModifiers()
+            if not mods & QtCore.Qt.KeyboardModifier.AltModifier:
+                value = snap_to_grid(self, value)
+        return super().itemChange(change, value)  # type: ignore[misc]
 
     def paint(self, painter, option, widget=None):
         super().paint(painter, option, widget)
