@@ -4,6 +4,50 @@ from constants import PALETTE_MIME, SHAPES, DEFAULTS
 from items import RectItem, EllipseItem, LineItem, TextItem
 
 
+class CornerRadiusDialog(QtWidgets.QDialog):
+    def __init__(self, rx: float, ry: float, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Corner radius")
+
+        layout = QtWidgets.QFormLayout(self)
+
+        self.rx_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        self.rx_slider.setRange(0, 50)
+        self.rx_slider.setValue(int(rx))
+        self.rx_label = QtWidgets.QLabel(str(int(rx)))
+        self.rx_label.setFixedWidth(40)
+        self.rx_slider.valueChanged.connect(
+            lambda v: self.rx_label.setText(str(v))
+        )
+        rx_layout = QtWidgets.QHBoxLayout()
+        rx_layout.addWidget(self.rx_slider)
+        rx_layout.addWidget(self.rx_label)
+        layout.addRow("rx", rx_layout)
+
+        self.ry_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        self.ry_slider.setRange(0, 50)
+        self.ry_slider.setValue(int(ry))
+        self.ry_label = QtWidgets.QLabel(str(int(ry)))
+        self.ry_label.setFixedWidth(40)
+        self.ry_slider.valueChanged.connect(
+            lambda v: self.ry_label.setText(str(v))
+        )
+        ry_layout = QtWidgets.QHBoxLayout()
+        ry_layout.addWidget(self.ry_slider)
+        ry_layout.addWidget(self.ry_label)
+        layout.addRow("ry", ry_layout)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addRow(buttons)
+
+    def values(self) -> tuple[int, int]:
+        return self.rx_slider.value(), self.ry_slider.value()
+
+
 class CanvasView(QtWidgets.QGraphicsView):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -220,13 +264,12 @@ class CanvasView(QtWidgets.QGraphicsView):
                 item.setPen(pen)
                 item.update()
         elif action is corner_act and isinstance(item, RectItem):
-            rx_val, ok = QtWidgets.QInputDialog.getDouble(self, "Corner radius", "rx:", item.rx, 0.0, 50.0, 1)
-            if ok:
-                ry_val, ok2 = QtWidgets.QInputDialog.getDouble(self, "Corner radius", "ry:", item.ry, 0.0, 50.0, 1)
-                if ok2:
-                    item.rx = min(rx_val, 50.0)
-                    item.ry = min(ry_val, 50.0)
-                    item.update()
+            dlg = CornerRadiusDialog(item.rx, item.ry, self)
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+                rx_val, ry_val = dlg.values()
+                item.rx = min(float(rx_val), 50.0)
+                item.ry = min(float(ry_val), 50.0)
+                item.update()
         elif action is color_act:
             color = QtWidgets.QColorDialog.getColor(item.defaultTextColor(), self, "Text color")
             if color.isValid():
