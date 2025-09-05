@@ -50,10 +50,12 @@ class CanvasView(QtWidgets.QGraphicsView):
         scene = QtWidgets.QGraphicsScene(self)
         scene.setSceneRect(0, 0, A4_WIDTH, A4_HEIGHT)
         self.setScene(scene)
-        self.setBackgroundBrush(QtGui.QColor("#fafafa"))
+        self.setBackgroundBrush(QtGui.QColor("#bfbfbf"))
+        self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self._grid_size = 20
         scene.changed.connect(self._update_canvas_bounds)
         self._update_canvas_bounds()
+        self.centerOn(scene.sceneRect().center())
 
         self._panning = False
         self._pan_start = QtCore.QPointF()
@@ -82,20 +84,31 @@ class CanvasView(QtWidgets.QGraphicsView):
 
     def drawBackground(self, painter: QtGui.QPainter, rect: QtCore.QRectF):
         super().drawBackground(painter, rect)
-        left = int(rect.left()) - int(rect.left()) % self._grid_size
-        top = int(rect.top()) - int(rect.top()) % self._grid_size
-        lines = []
-        x = left
-        while x < rect.right():
-            lines.append(QtCore.QLineF(x, rect.top(), x, rect.bottom()))
-            x += self._grid_size
-        y = top
-        while y < rect.bottom():
-            lines.append(QtCore.QLineF(rect.left(), y, rect.right(), y))
-            y += self._grid_size
+        left_page = math.floor(rect.left() / A4_WIDTH) * A4_WIDTH
+        top_page = math.floor(rect.top() / A4_HEIGHT) * A4_HEIGHT
+        right_page = math.ceil(rect.right() / A4_WIDTH) * A4_WIDTH
+        bottom_page = math.ceil(rect.bottom() / A4_HEIGHT) * A4_HEIGHT
         pen = QtGui.QPen(QtGui.QColor("#D0D0D0"))
         painter.setPen(pen)
-        painter.drawLines(lines)
+        for x in range(int(left_page), int(right_page), A4_WIDTH):
+            for y in range(int(top_page), int(bottom_page), A4_HEIGHT):
+                page_rect = QtCore.QRectF(x, y, A4_WIDTH, A4_HEIGHT)
+                sub_rect = page_rect.intersected(rect)
+                if sub_rect.isEmpty():
+                    continue
+                painter.fillRect(sub_rect, QtGui.QColor("white"))
+                grid_left = int(sub_rect.left()) - int(sub_rect.left()) % self._grid_size
+                grid_top = int(sub_rect.top()) - int(sub_rect.top()) % self._grid_size
+                lines = []
+                gx = grid_left
+                while gx < sub_rect.right():
+                    lines.append(QtCore.QLineF(gx, sub_rect.top(), gx, sub_rect.bottom()))
+                    gx += self._grid_size
+                gy = grid_top
+                while gy < sub_rect.bottom():
+                    lines.append(QtCore.QLineF(sub_rect.left(), gy, sub_rect.right(), gy))
+                    gy += self._grid_size
+                painter.drawLines(lines)
 
     # --- Drag and drop from the palette ---
     def dragEnterEvent(self, event: QtGui.QDragEnterEvent):
