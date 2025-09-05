@@ -4,6 +4,35 @@ from constants import PALETTE_MIME, SHAPES, DEFAULTS
 from items import RectItem, EllipseItem, LineItem, TextItem
 
 
+class CornerRadiusDialog(QtWidgets.QDialog):
+    def __init__(self, radius: float, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Corner radius")
+
+        layout = QtWidgets.QFormLayout(self)
+
+        self.slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        self.slider.setRange(0, 50)
+        self.slider.setValue(int(radius))
+        self.label = QtWidgets.QLabel(str(int(radius)))
+        self.label.setFixedWidth(40)
+        self.slider.valueChanged.connect(lambda v: self.label.setText(str(v)))
+        radius_layout = QtWidgets.QHBoxLayout()
+        radius_layout.addWidget(self.slider)
+        radius_layout.addWidget(self.label)
+        layout.addRow("radius", radius_layout)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addRow(buttons)
+
+    def value(self) -> int:
+        return self.slider.value()
+
+
 class CanvasView(QtWidgets.QGraphicsView):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -73,7 +102,7 @@ class CanvasView(QtWidgets.QGraphicsView):
         w, h = DEFAULTS[shape]
         if shape == "Rectangle":
             item = RectItem(x, y, w, h)
-        elif shape == "Circle":
+        elif shape in ("Circle", "Ellipse"):
             item = EllipseItem(x, y, w, h)
         elif shape == "Line":
             item = LineItem(x, y, w)
@@ -112,9 +141,9 @@ class CanvasView(QtWidgets.QGraphicsView):
                     it.setRect(0, 0, new_w, new_h)
                     it.setTransformOriginPoint(new_w / 2.0, new_h / 2.0)
                     if hasattr(it, "rx"):
-                        it.rx *= factor
+                        it.rx = min(it.rx * factor, 50.0)
                     if hasattr(it, "ry"):
-                        it.ry *= factor
+                        it.ry = min(it.ry * factor, 50.0)
                 elif isinstance(it, QtWidgets.QGraphicsEllipseItem):
                     r = it.rect()
                     new_w = max(10.0, r.width() * factor)
@@ -220,13 +249,11 @@ class CanvasView(QtWidgets.QGraphicsView):
                 item.setPen(pen)
                 item.update()
         elif action is corner_act and isinstance(item, RectItem):
-            rx_val, ok = QtWidgets.QInputDialog.getDouble(self, "Corner radius", "rx:", item.rx, 0.0, 1000.0, 1)
-            if ok:
-                ry_val, ok2 = QtWidgets.QInputDialog.getDouble(self, "Corner radius", "ry:", item.ry, 0.0, 1000.0, 1)
-                if ok2:
-                    item.rx = rx_val
-                    item.ry = ry_val
-                    item.update()
+            dlg = CornerRadiusDialog(item.rx, self)
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+                val = dlg.value()
+                item.rx = item.ry = min(float(val), 50.0)
+                item.update()
         elif action is color_act:
             color = QtWidgets.QColorDialog.getColor(item.defaultTextColor(), self, "Text color")
             if color.isValid():

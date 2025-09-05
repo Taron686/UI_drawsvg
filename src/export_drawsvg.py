@@ -59,6 +59,40 @@ def export_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
             lines.append("    d.append(_rect)")
             lines.append("")
 
+        elif shape == "Ellipse" and isinstance(it, QtWidgets.QGraphicsEllipseItem):
+            r = it.rect()
+            x = it.pos().x()
+            y = it.pos().y()
+            w = r.width()
+            h = r.height()
+            cx = x + w / 2.0
+            cy = y + h / 2.0
+            rx = w / 2.0
+            ry = h / 2.0
+            ang = it.rotation()
+            brush = it.brush()
+            pen = it.pen()
+            attrs = []
+            if brush.style() == QtCore.Qt.BrushStyle.NoBrush:
+                attrs.append("fill='none'")
+            else:
+                bcol = brush.color()
+                attrs.append(f"fill='{bcol.name()}'")
+                attrs.append(f"fill_opacity={bcol.alphaF():.2f}")
+            attrs.append(f"stroke='{pen.color().name()}'")
+            attrs.append(f"stroke_width={pen.widthF():.2f}")
+            attr_str = ", ".join(attrs)
+            if abs(ang) > 1e-6:
+                lines.append(
+                    f"    _ell = draw.Ellipse({cx:.2f}, {cy:.2f}, {rx:.2f}, {ry:.2f}, {attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                )
+            else:
+                lines.append(
+                    f"    _ell = draw.Ellipse({cx:.2f}, {cy:.2f}, {rx:.2f}, {ry:.2f}, {attr_str})"
+                )
+            lines.append("    d.append(_ell)")
+            lines.append("")
+
         elif shape == "Circle" and isinstance(it, QtWidgets.QGraphicsEllipseItem):
             r = it.rect()
             x = it.pos().x()

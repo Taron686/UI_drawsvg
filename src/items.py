@@ -81,10 +81,10 @@ class ResizeHandle(QtWidgets.QGraphicsEllipseItem):
             parent.setTransformOriginPoint(rect.width() / 2.0, rect.height() / 2.0)
             if hasattr(parent, "rx"):
                 sx = rect.width() / self._start_rect.width() if self._start_rect.width() else 1.0
-                parent.rx *= sx
+                parent.rx = min(parent.rx * sx, 50.0)
             if hasattr(parent, "ry"):
                 sy = rect.height() / self._start_rect.height() if self._start_rect.height() else 1.0
-                parent.ry *= sy
+                parent.ry = min(parent.ry * sy, 50.0)
         elif isinstance(parent, QtWidgets.QGraphicsEllipseItem):
             parent.setRect(0, 0, rect.width(), rect.height())
             parent.setTransformOriginPoint(rect.width() / 2.0, rect.height() / 2.0)

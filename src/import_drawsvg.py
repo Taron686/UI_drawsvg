@@ -68,8 +68,8 @@ def import_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
             elif line.startswith("_rect = draw.Rectangle("):
                 args, kwargs = _parse_call(line)
                 x, y, w, h = map(float, args[:4])
-                rx = float(kwargs.get("rx", 0.0))
-                ry = float(kwargs.get("ry", 0.0))
+                rx = min(float(kwargs.get("rx", 0.0)), 50.0)
+                ry = min(float(kwargs.get("ry", 0.0)), 50.0)
                 if "rx" in kwargs and "ry" not in kwargs:
                     ry = rx
                 if "ry" in kwargs and "rx" not in kwargs:
@@ -79,6 +79,19 @@ def import_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
                 if "transform" in kwargs:
                     item.setRotation(_parse_rotate(kwargs["transform"]))
                 item.setData(0, "Rectangle")
+                scene.addItem(item)
+            elif line.startswith("_ell = draw.Ellipse("):
+                args, kwargs = _parse_call(line)
+                cx, cy, rx, ry = map(float, args[:4])
+                x = cx - rx
+                y = cy - ry
+                w = 2 * rx
+                h = 2 * ry
+                item = EllipseItem(x, y, w, h)
+                _apply_style(item, kwargs)
+                if "transform" in kwargs:
+                    item.setRotation(_parse_rotate(kwargs["transform"]))
+                item.setData(0, "Ellipse")
                 scene.addItem(item)
             elif line.startswith("_circ = draw.Circle("):
                 args, kwargs = _parse_call(line)
