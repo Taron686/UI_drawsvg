@@ -46,6 +46,10 @@ class CanvasView(QtWidgets.QGraphicsView):
         self.setScene(scene)
         self.setBackgroundBrush(QtGui.QColor("#fafafa"))
         self._grid_size = 20
+        # storage for duplicated items during ctrl+right drag
+        self._dup_items = []
+        self._dup_anchor = None
+        self._dup_item_start_positions = []
 
     def clear_canvas(self):
         """Remove all items from the scene."""
@@ -114,7 +118,7 @@ class CanvasView(QtWidgets.QGraphicsView):
         item.setSelected(True)
         event.acceptProposedAction()
 
-    # --- Central mouse wheel logic for all selected items ---
+    # --- Mouse wheel logic for selected items ---
     def wheelEvent(self, event: QtGui.QWheelEvent):
         mods = event.modifiers()
         delta = event.angleDelta()
@@ -129,42 +133,79 @@ class CanvasView(QtWidgets.QGraphicsView):
             event.accept()
             return
 
-        if selected and (mods & QtCore.Qt.KeyboardModifier.ControlModifier):
-            factor = 1.0 + dy * 0.1
-            if factor <= 0:
-                factor = 0.05
-            for it in selected:
-                if isinstance(it, QtWidgets.QGraphicsRectItem):
-                    r = it.rect()
-                    new_w = max(10.0, r.width() * factor)
-                    new_h = max(10.0, r.height() * factor)
-                    it.setRect(0, 0, new_w, new_h)
-                    it.setTransformOriginPoint(new_w / 2.0, new_h / 2.0)
-                    if hasattr(it, "rx"):
-                        it.rx = min(it.rx * factor, 50.0)
-                    if hasattr(it, "ry"):
-                        it.ry = min(it.ry * factor, 50.0)
-                elif isinstance(it, QtWidgets.QGraphicsEllipseItem):
-                    r = it.rect()
-                    new_w = max(10.0, r.width() * factor)
-                    new_h = max(10.0, r.height() * factor)
-                    it.setRect(0, 0, new_w, new_h)
-                    it.setTransformOriginPoint(new_w / 2.0, new_h / 2.0)
-                elif isinstance(it, LineItem):
-                    it._length = max(10.0, it._length * factor)
-                    it.setLine(0.0, 0.0, it._length, 0.0)
-                    it.setTransformOriginPoint(it._length / 2.0, 0.0)
-                elif isinstance(it, TextItem):
-                    font = it.font()
-                    new_size = max(1.0, font.pointSizeF() * factor)
-                    font.setPointSizeF(new_size)
-                    it.setFont(font)
-                    br = it.boundingRect()
-                    it.setTransformOriginPoint(br.width() / 2.0, br.height() / 2.0)
+        super().wheelEvent(event)
+
+    # --- Duplicate selected items with Ctrl + right mouse drag ---
+    def _clone_item(self, item: QtWidgets.QGraphicsItem):
+        clone = None
+        if isinstance(item, RectItem):
+            r = item.rect()
+            clone = RectItem(item.pos().x(), item.pos().y(), r.width(), r.height(), getattr(item, "rx", 0.0), getattr(item, "ry", 0.0))
+            clone.setBrush(item.brush())
+            clone.setPen(item.pen())
+        elif isinstance(item, EllipseItem):
+            r = item.rect()
+            clone = EllipseItem(item.pos().x(), item.pos().y(), r.width(), r.height())
+            clone.setBrush(item.brush())
+            clone.setPen(item.pen())
+        elif isinstance(item, LineItem):
+            clone = LineItem(item.pos().x(), item.pos().y(), item._length)
+            clone.setPen(item.pen())
+        elif isinstance(item, TextItem):
+            r = item.boundingRect()
+            clone = TextItem(item.pos().x(), item.pos().y(), r.width(), r.height())
+            clone.setPlainText(item.toPlainText())
+            clone.setFont(item.font())
+            clone.setDefaultTextColor(item.defaultTextColor())
+        if clone:
+            clone.setRotation(item.rotation())
+            clone.setTransformOriginPoint(item.transformOriginPoint())
+            clone.setData(0, item.data(0))
+            self.scene().addItem(clone)
+        return clone
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent):
+        if (
+            event.button() == QtCore.Qt.MouseButton.RightButton
+            and event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier
+        ):
+            selected = self.scene().selectedItems()
+            if selected:
+                self._dup_items = []
+                self._dup_item_start_positions = []
+                self._dup_anchor = self.mapToScene(event.position().toPoint())
+                for it in selected:
+                    clone = self._clone_item(it)
+                    if clone:
+                        clone.setSelected(True)
+                        self._dup_items.append(clone)
+                        self._dup_item_start_positions.append(clone.pos())
+                    it.setSelected(False)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent):
+        if self._dup_items:
+            scene_pos = self.mapToScene(event.position().toPoint())
+            delta = scene_pos - self._dup_anchor
+            for clone, start in zip(self._dup_items, self._dup_item_start_positions):
+                clone.setPos(start + delta)
             event.accept()
             return
+        super().mouseMoveEvent(event)
 
-        super().wheelEvent(event)
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
+        if (
+            self._dup_items
+            and event.button() == QtCore.Qt.MouseButton.RightButton
+        ):
+            self._dup_items = []
+            self._dup_item_start_positions = []
+            self._dup_anchor = None
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
     # --- Keyboard shortcut to delete selected items ---
     def keyPressEvent(self, event: QtGui.QKeyEvent):
