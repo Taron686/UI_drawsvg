@@ -100,7 +100,10 @@ class ResizableItem:
     """Mixin providing 8-direction resize handles for graphics items."""
 
     def __init__(self):
-        super().__init__()
+        # NOTE: this mixin should not call super().__init__() because concrete
+        # QGraphicsItem subclasses are already initialised explicitly.
+        # Calling super() here would attempt to re-initialise them and triggers
+        # runtime errors like "You can't initialize ... twice".
         self._handles = []
 
     def _ensure_handles(self):
