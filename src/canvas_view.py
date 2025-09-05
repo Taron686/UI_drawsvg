@@ -112,6 +112,8 @@ class CanvasView(QtWidgets.QGraphicsView):
             item = TriangleItem(x, y, w, h)
         elif shape == "Line":
             item = LineItem(x, y, w)
+        elif shape == "Arrow":
+            item = LineItem(x, y, w, arrow_end=True)
         else:  # "Text"
             item = TextItem(x, y, w, h)
 
@@ -210,7 +212,13 @@ class CanvasView(QtWidgets.QGraphicsView):
             clone.setBrush(item.brush())
             clone.setPen(item.pen())
         elif isinstance(item, LineItem):
-            clone = LineItem(item.x(), item.y(), item._length)
+            clone = LineItem(
+                item.x(),
+                item.y(),
+                item._length,
+                arrow_start=getattr(item, "arrow_start", False),
+                arrow_end=getattr(item, "arrow_end", False),
+            )
             clone.setPen(item.pen())
         elif isinstance(item, TextItem):
             br = item.boundingRect()
@@ -288,6 +296,7 @@ class CanvasView(QtWidgets.QGraphicsView):
         menu = QtWidgets.QMenu(self)
         fill_act = opacity_act = stroke_act = width_act = None
         color_act = size_act = corner_act = None
+        start_arrow_act = end_arrow_act = None
 
         selected = self.scene().selectedItems()
         align_actions = {}
@@ -323,6 +332,13 @@ class CanvasView(QtWidgets.QGraphicsView):
             stroke_act = menu.addAction("Set stroke color…")
             width_act = menu.addAction("Set stroke width…")
         elif isinstance(item, LineItem):
+            start_arrow_act = menu.addAction("Show start arrowhead")
+            start_arrow_act.setCheckable(True)
+            start_arrow_act.setChecked(getattr(item, "arrow_start", False))
+            end_arrow_act = menu.addAction("Show end arrowhead")
+            end_arrow_act.setCheckable(True)
+            end_arrow_act.setChecked(getattr(item, "arrow_end", False))
+            menu.addSeparator()
             stroke_act = menu.addAction("Set stroke color…")
             width_act = menu.addAction("Set stroke width…")
         elif isinstance(item, TextItem):
@@ -371,6 +387,10 @@ class CanvasView(QtWidgets.QGraphicsView):
                 pen.setWidthF(val)
                 item.setPen(pen)
                 item.update()
+        elif action is start_arrow_act and isinstance(item, LineItem):
+            item.set_arrow_start(start_arrow_act.isChecked())
+        elif action is end_arrow_act and isinstance(item, LineItem):
+            item.set_arrow_end(end_arrow_act.isChecked())
         elif action is corner_act and isinstance(item, RectItem):
             dlg = CornerRadiusDialog(item.rx, self)
             if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:

@@ -516,7 +516,7 @@ class TriangleItem(ResizableItem, QtWidgets.QGraphicsPolygonItem):
 
 
 class LineItem(QtWidgets.QGraphicsLineItem):
-    def __init__(self, x, y, length):
+    def __init__(self, x, y, length, arrow_start: bool = False, arrow_end: bool = False):
         super().__init__(0.0, 0.0, length, 0.0)
         self._length = length
         self.setPos(x, y)
@@ -528,6 +528,9 @@ class LineItem(QtWidgets.QGraphicsLineItem):
             | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsFocusable
         )
         self.setPen(PEN_NORMAL)
+        self.arrow_start = arrow_start
+        self.arrow_end = arrow_end
+        self._arrow_size = 10.0
 
         # endpoint handles
         self._start_handle = LineHandle(self, "start")
@@ -535,6 +538,25 @@ class LineItem(QtWidgets.QGraphicsLineItem):
         self._start_handle.hide()
         self._end_handle.hide()
         self.update_handles()
+
+    def set_arrow_start(self, val: bool) -> None:
+        if self.arrow_start != val:
+            self.prepareGeometryChange()
+            self.arrow_start = val
+            self.update()
+
+    def set_arrow_end(self, val: bool) -> None:
+        if self.arrow_end != val:
+            self.prepareGeometryChange()
+            self.arrow_end = val
+            self.update()
+
+    def boundingRect(self):  # type: ignore[override]
+        br = super().boundingRect()
+        if self.arrow_start or self.arrow_end:
+            extra = self._arrow_size
+            return br.adjusted(-extra, -extra, extra, extra)
+        return br
 
     def update_handles(self):
         line = self.line()
@@ -568,13 +590,43 @@ class LineItem(QtWidgets.QGraphicsLineItem):
                 self.update_handles()
         return super().itemChange(change, value)  # type: ignore[misc]
 
+    def _draw_arrow_head(
+        self, painter: QtGui.QPainter, start: QtCore.QPointF, end: QtCore.QPointF
+    ) -> None:
+        line = QtCore.QLineF(start, end)
+        angle = math.atan2(-line.dy(), line.dx())
+        size = self._arrow_size
+        p1 = end + QtCore.QPointF(
+            math.sin(angle - math.pi / 3) * size,
+            math.cos(angle - math.pi / 3) * size,
+        )
+        p2 = end + QtCore.QPointF(
+            math.sin(angle - math.pi + math.pi / 3) * size,
+            math.cos(angle - math.pi + math.pi / 3) * size,
+        )
+        painter.drawPolygon(QtGui.QPolygonF([end, p1, p2]))
+
     def paint(self, painter, option, widget=None):
         super().paint(painter, option, widget)
+        line = self.line()
+        if self.arrow_start or self.arrow_end:
+            painter.save()
+            painter.setPen(self.pen())
+            painter.setBrush(self.pen().color())
+            if self.arrow_start:
+                self._draw_arrow_head(painter, line.p2(), line.p1())
+            if self.arrow_end:
+                self._draw_arrow_head(painter, line.p1(), line.p2())
+            painter.restore()
         if self.isSelected():
             painter.save()
             painter.setPen(PEN_SELECTED)
             painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
-            painter.drawLine(self.line())
+            painter.drawLine(line)
+            if self.arrow_start:
+                self._draw_arrow_head(painter, line.p2(), line.p1())
+            if self.arrow_end:
+                self._draw_arrow_head(painter, line.p1(), line.p2())
             painter.restore()
 
 

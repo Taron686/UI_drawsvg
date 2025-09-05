@@ -162,7 +162,7 @@ def export_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
             lines.append("    d.append(_tri)")
             lines.append("")
 
-        elif shape == "Line" and isinstance(it, QtWidgets.QGraphicsLineItem):
+        elif shape in ("Line", "Arrow") and isinstance(it, QtWidgets.QGraphicsLineItem):
             line = it.line()
             x = it.pos().x()
             y = it.pos().y()
@@ -174,17 +174,45 @@ def export_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
             cy = (y1 + y2) / 2.0
             ang = it.rotation()
             pen = it.pen()
-            attr_str = f"stroke='{pen.color().name()}', stroke_width={pen.widthF():.2f}"
-            if abs(ang) > 1e-6:
+            arrow_start = getattr(it, "arrow_start", False)
+            arrow_end = getattr(it, "arrow_end", False)
+            if arrow_start or arrow_end:
+                lines.append("    _arrow = draw.Marker(-0.1, -0.51, 0.9, 0.5, scale=4, orient='auto')")
                 lines.append(
-                    f"    _line = draw.Line({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}, {attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                    f"    _arrow.append(draw.Lines(-0.1, 0.5, -0.1, -0.5, 0.9, 0, fill='{pen.color().name()}', close=True))"
                 )
+                path_cmd = f"M {x1:.2f} {y1:.2f} L {x2:.2f} {y2:.2f}"
+                attrs = [
+                    f"stroke='{pen.color().name()}'",
+                    f"stroke_width={pen.widthF():.2f}",
+                    "fill='none'",
+                ]
+                if arrow_start:
+                    attrs.append("marker_start=_arrow")
+                if arrow_end:
+                    attrs.append("marker_end=_arrow")
+                attr_str = ", ".join(attrs)
+                if abs(ang) > 1e-6:
+                    lines.append(
+                        f"    _path = draw.Path('{path_cmd}', {attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                    )
+                else:
+                    lines.append(f"    _path = draw.Path('{path_cmd}', {attr_str})")
+                lines.append("    d.append(_arrow)")
+                lines.append("    d.append(_path)")
+                lines.append("")
             else:
-                lines.append(
-                    f"    _line = draw.Line({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}, {attr_str})"
-                )
-            lines.append("    d.append(_line)")
-            lines.append("")
+                attr_str = f"stroke='{pen.color().name()}', stroke_width={pen.widthF():.2f}"
+                if abs(ang) > 1e-6:
+                    lines.append(
+                        f"    _line = draw.Line({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}, {attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                    )
+                else:
+                    lines.append(
+                        f"    _line = draw.Line({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}, {attr_str})"
+                    )
+                lines.append("    d.append(_line)")
+                lines.append("")
 
         elif shape == "Text" and isinstance(it, QtWidgets.QGraphicsTextItem):
             x = it.pos().x()
