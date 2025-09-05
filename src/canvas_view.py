@@ -51,6 +51,10 @@ class CanvasView(QtWidgets.QGraphicsView):
         self.setBackgroundBrush(QtGui.QColor("#fafafa"))
         self._grid_size = 20
 
+        self._panning = False
+        self._pan_start = QtCore.QPoint()
+        self._prev_drag_mode = self.dragMode()
+
     def clear_canvas(self):
         """Remove all items from the scene."""
         self.scene().clear()
@@ -132,6 +136,14 @@ class CanvasView(QtWidgets.QGraphicsView):
 
     # --- Duplicate selected items with Ctrl+drag ---
     def mousePressEvent(self, event: QtGui.QMouseEvent):
+        if event.button() == QtCore.Qt.MouseButton.MiddleButton:
+            self._panning = True
+            self._pan_start = event.position().toPoint()
+            self._prev_drag_mode = self.dragMode()
+            self.setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
+            self.viewport().setCursor(QtCore.Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+            return
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             mods = event.modifiers()
             if mods & (
@@ -163,6 +175,17 @@ class CanvasView(QtWidgets.QGraphicsView):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
+        if self._panning:
+            delta = event.position().toPoint() - self._pan_start
+            self._pan_start = event.position().toPoint()
+            self.horizontalScrollBar().setValue(
+                self.horizontalScrollBar().value() - delta.x()
+            )
+            self.verticalScrollBar().setValue(
+                self.verticalScrollBar().value() - delta.y()
+            )
+            event.accept()
+            return
         if getattr(self, "_dup_source", None):
             pos = self.mapToScene(event.position().toPoint())
             delta = pos - self._dup_start
@@ -189,6 +212,12 @@ class CanvasView(QtWidgets.QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
+        if event.button() == QtCore.Qt.MouseButton.MiddleButton and self._panning:
+            self._panning = False
+            self.setDragMode(self._prev_drag_mode)
+            self.viewport().setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+            event.accept()
+            return
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             if getattr(self, "_dup_items", None):
                 self._dup_items = []
