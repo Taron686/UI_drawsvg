@@ -1,3 +1,5 @@
+import math
+
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from constants import PEN_NORMAL, PEN_SELECTED
@@ -115,6 +117,81 @@ class ResizeHandle(QtWidgets.QGraphicsEllipseItem):
         event.accept()
 
 
+class RotationHandle(QtWidgets.QGraphicsPixmapItem):
+    """Handle used to rotate the parent item when dragged."""
+
+    def __init__(self, parent: QtWidgets.QGraphicsItem):
+        # Create a small pixmap with a circular arrow.
+        pix = QtGui.QPixmap(20, 20)
+        pix.fill(QtCore.Qt.GlobalColor.transparent)
+        painter = QtGui.QPainter(pix)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        pen = QtGui.QPen(HANDLE_COLOR)
+        pen.setWidth(2)
+        painter.setPen(pen)
+        rect = QtCore.QRectF(5, 5, 10, 10)
+        painter.drawArc(rect, 30 * 16, 300 * 16)
+        path = QtGui.QPainterPath()
+        path.moveTo(15, 8)
+        path.lineTo(11, 8)
+        path.lineTo(13, 4)
+        path.closeSubpath()
+        painter.fillPath(path, HANDLE_COLOR)
+        painter.end()
+
+        super().__init__(pix, parent)
+        self.setOffset(-pix.width() / 2.0, -pix.height() / 2.0)
+        self.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
+        self.setCursor(QtCore.Qt.CursorShape.OpenHandCursor)
+        self._start_angle = None
+        self._start_rotation = 0.0
+        self._center = QtCore.QPointF()
+        self._parent_was_movable = False
+
+    def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
+        parent = self.parentItem()
+        self._center = parent.mapToScene(parent.boundingRect().center())
+        pos = event.scenePos()
+        self._start_angle = math.degrees(math.atan2(pos.y() - self._center.y(), pos.x() - self._center.x()))
+        self._start_rotation = parent.rotation()
+        flags = parent.flags()
+        self._parent_was_movable = bool(
+            flags & QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+        )
+        if self._parent_was_movable:
+            parent.setFlag(
+                QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False
+            )
+        self.setCursor(QtCore.Qt.CursorShape.ClosedHandCursor)
+        event.accept()
+
+    def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
+        if self._start_angle is None:
+            event.ignore()
+            return
+        pos = event.scenePos()
+        angle = math.degrees(
+            math.atan2(pos.y() - self._center.y(), pos.x() - self._center.x())
+        )
+        delta = angle - self._start_angle
+        parent = self.parentItem()
+        parent.setRotation(self._start_rotation + delta)
+        if hasattr(parent, "update_handles"):
+            parent.update_handles()
+        event.accept()
+
+    def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
+        parent = self.parentItem()
+        if self._parent_was_movable:
+            parent.setFlag(
+                QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True
+            )
+            self._parent_was_movable = False
+        self._start_angle = None
+        self.setCursor(QtCore.Qt.CursorShape.OpenHandCursor)
+        event.accept()
+
+
 class ResizableItem:
     """Mixin providing 8-direction resize handles for graphics items."""
 
@@ -124,6 +201,7 @@ class ResizableItem:
         # Calling super() here would attempt to re-initialise them and triggers
         # runtime errors like "You can't initialize ... twice".
         self._handles = []
+        self._rotation_handle = None
 
     def _ensure_handles(self):
         if self._handles:
@@ -142,6 +220,8 @@ class ResizableItem:
             h = ResizeHandle(self, d)
             h.hide()
             self._handles.append(h)
+        self._rotation_handle = RotationHandle(self)
+        self._rotation_handle.hide()
 
     def update_handles(self):
         self._ensure_handles()
@@ -159,15 +239,22 @@ class ResizableItem:
         ]
         for pt, h in zip(points, self._handles):
             h.setPos(pt)
+        if self._rotation_handle:
+            rot_offset = QtCore.QPointF(o + 10.0, -o - 10.0)
+            self._rotation_handle.setPos(rect.topRight() + rot_offset)
 
     def show_handles(self):
         self.update_handles()
         for h in self._handles:
             h.show()
+        if self._rotation_handle:
+            self._rotation_handle.show()
 
     def hide_handles(self):
         for h in self._handles:
             h.hide()
+        if self._rotation_handle:
+            self._rotation_handle.hide()
 
     def itemChange(self, change, value):  # type: ignore[override]
         if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:

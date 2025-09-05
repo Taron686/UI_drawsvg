@@ -228,19 +228,7 @@ class CanvasView(QtWidgets.QGraphicsView):
 
     # --- Central mouse wheel logic for all selected items ---
     def wheelEvent(self, event: QtGui.QWheelEvent):
-        mods = event.modifiers()
-        delta = event.angleDelta()
-        dy = delta.y() if delta.y() else delta.x()
-        dy /= 120.0
-
-        selected = self.scene().selectedItems()
-        if selected and (mods & QtCore.Qt.KeyboardModifier.AltModifier):
-            step_deg = 5.0
-            for it in selected:
-                it.setRotation(it.rotation() + dy * step_deg)
-            event.accept()
-            return
-
+        """Default wheel behaviour without rotation support."""
         super().wheelEvent(event)
 
     # --- Keyboard shortcut to delete selected items ---
