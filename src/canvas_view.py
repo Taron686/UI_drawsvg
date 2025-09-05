@@ -277,7 +277,10 @@ class CanvasView(QtWidgets.QGraphicsView):
             self.setTransformationAnchor(
                 QtWidgets.QGraphicsView.ViewportAnchor.AnchorUnderMouse
             )
-            factor = 1.2 if event.angleDelta().y() > 0 else 1 / 1.2
+            delta = event.angleDelta().y()
+            if delta == 0:
+                delta = event.angleDelta().x()
+            factor = 1.2 if delta > 0 else 1 / 1.2
             self.scale(factor, factor)
             self.setTransformationAnchor(anchor)
             event.accept()
