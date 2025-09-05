@@ -18,8 +18,13 @@ class RectItem(QtWidgets.QGraphicsRectItem):
         self.setBrush(QtCore.Qt.BrushStyle.NoBrush)
 
     def paint(self, painter, option, widget=None):
-        self.setPen(PEN_SELECTED if self.isSelected() else PEN_NORMAL)
         super().paint(painter, option, widget)
+        if self.isSelected():
+            painter.save()
+            painter.setPen(PEN_SELECTED)
+            painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+            painter.drawRect(self.rect())
+            painter.restore()
 
 
 class EllipseItem(QtWidgets.QGraphicsEllipseItem):
@@ -37,8 +42,13 @@ class EllipseItem(QtWidgets.QGraphicsEllipseItem):
         self.setBrush(QtCore.Qt.BrushStyle.NoBrush)
 
     def paint(self, painter, option, widget=None):
-        self.setPen(PEN_SELECTED if self.isSelected() else PEN_NORMAL)
         super().paint(painter, option, widget)
+        if self.isSelected():
+            painter.save()
+            painter.setPen(PEN_SELECTED)
+            painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(self.rect())
+            painter.restore()
 
 
 class LineItem(QtWidgets.QGraphicsLineItem):
@@ -56,8 +66,13 @@ class LineItem(QtWidgets.QGraphicsLineItem):
         self.setPen(PEN_NORMAL)
 
     def paint(self, painter, option, widget=None):
-        self.setPen(PEN_SELECTED if self.isSelected() else PEN_NORMAL)
         super().paint(painter, option, widget)
+        if self.isSelected():
+            painter.save()
+            painter.setPen(PEN_SELECTED)
+            painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+            painter.drawLine(self.line())
+            painter.restore()
 
 
 class TextItem(QtWidgets.QGraphicsTextItem):
@@ -80,6 +95,9 @@ class TextItem(QtWidgets.QGraphicsTextItem):
 
     def paint(self, painter, option, widget=None):
         super().paint(painter, option, widget)
-        painter.setPen(PEN_SELECTED if self.isSelected() else PEN_NORMAL)
-        painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
-        painter.drawRect(self.boundingRect())
+        if self.isSelected():
+            painter.save()
+            painter.setPen(PEN_SELECTED)
+            painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+            painter.drawRect(self.boundingRect())
+            painter.restore()

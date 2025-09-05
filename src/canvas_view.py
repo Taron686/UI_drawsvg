@@ -167,12 +167,14 @@ class CanvasView(QtWidgets.QGraphicsView):
             if color.isValid():
                 pen.setColor(color)
                 item.setPen(pen)
+                item.update()
         elif action is width_act:
             pen = item.pen()
             val, ok = QtWidgets.QInputDialog.getDouble(self, "Stroke width", "Width:", pen.widthF(), 0.1, 50.0, 1)
             if ok:
                 pen.setWidthF(val)
                 item.setPen(pen)
+                item.update()
         elif action is color_act:
             color = QtWidgets.QColorDialog.getColor(item.defaultTextColor(), self, "Text color")
             if color.isValid():
