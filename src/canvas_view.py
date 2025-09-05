@@ -2,6 +2,9 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from constants import PALETTE_MIME, SHAPES, DEFAULTS
 from items import RectItem, EllipseItem, LineItem, TextItem
+import importlib.util
+import math
+import re
 
 
 class CanvasView(QtWidgets.QGraphicsView):
@@ -202,3 +205,98 @@ class CanvasView(QtWidgets.QGraphicsView):
                 it.setZValue(z)
         else:
             super().contextMenuEvent(event)
+
+    # --- drawsvg Import ---
+    def _apply_style(self, item, kwargs):
+        fill = kwargs.get("fill")
+        if fill and fill != "none":
+            color = QtGui.QColor(fill)
+            if "fill_opacity" in kwargs:
+                try:
+                    color.setAlphaF(float(kwargs["fill_opacity"]))
+                except Exception:
+                    pass
+            item.setBrush(color)
+        else:
+            item.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+
+        pen = item.pen()
+        if "stroke" in kwargs:
+            pen.setColor(QtGui.QColor(kwargs["stroke"]))
+        if "stroke_width" in kwargs:
+            try:
+                pen.setWidthF(float(kwargs["stroke_width"]))
+            except Exception:
+                pass
+        item.setPen(pen)
+
+    def _apply_rotation(self, item, kwargs):
+        transform = kwargs.get("transform", "")
+        m = re.match(r"rotate\(([\-0-9.]+)", transform)
+        if m:
+            try:
+                item.setRotation(float(m.group(1)))
+            except Exception:
+                pass
+
+    def load_drawsvg_py(self, path: str):
+        spec = importlib.util.spec_from_file_location("_drawsvg_loaded", path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("Kann Datei nicht laden")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        if not hasattr(module, "build_drawing"):
+            raise RuntimeError("build_drawing() nicht gefunden")
+        drawing = module.build_drawing()
+        scene = self.scene()
+        scene.clear()
+        width = getattr(drawing, "width", 1000)
+        height = getattr(drawing, "height", 700)
+        scene.setSceneRect(0, 0, width, height)
+
+        elements = getattr(drawing, "elements", [])
+        for el in elements:
+            tag = getattr(el, "tag", "")
+            args = getattr(el, "args", [])
+            kwargs = getattr(el, "kwargs", {})
+            if tag == "rect" and len(args) >= 4:
+                x, y, w, h = map(float, args[:4])
+                item = RectItem(x, y, w, h)
+                item.setData(0, "Rectangle")
+                self._apply_style(item, kwargs)
+                self._apply_rotation(item, kwargs)
+                scene.addItem(item)
+            elif tag == "circle" and len(args) >= 3:
+                cx, cy, r = map(float, args[:3])
+                item = EllipseItem(cx - r, cy - r, 2 * r, 2 * r)
+                item.setData(0, "Circle")
+                self._apply_style(item, kwargs)
+                self._apply_rotation(item, kwargs)
+                scene.addItem(item)
+            elif tag == "line" and len(args) >= 4:
+                x1, y1, x2, y2 = map(float, args[:4])
+                length = math.hypot(x2 - x1, y2 - y1)
+                item = LineItem(x1, y1, length)
+                item.setData(0, "Line")
+                self._apply_style(item, kwargs)
+                self._apply_rotation(item, kwargs)
+                scene.addItem(item)
+            elif tag == "text" and len(args) >= 4:
+                text, size, x, baseline = args[:4]
+                size = float(size)
+                x = float(x)
+                baseline = float(baseline)
+                item = TextItem(x, baseline - size, 100.0, size)
+                item.setPlainText(text)
+                font = item.font()
+                font.setPointSizeF(size)
+                item.setFont(font)
+                br = item.boundingRect()
+                item.setTransformOriginPoint(br.width() / 2.0, br.height() / 2.0)
+                color = kwargs.get("fill")
+                if color:
+                    item.setDefaultTextColor(QtGui.QColor(color))
+                self._apply_rotation(item, kwargs)
+                item.setData(0, "Text")
+                scene.addItem(item)
+
