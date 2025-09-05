@@ -3,6 +3,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from canvas_view import CanvasView
 from palette import PaletteList
 from export import export_drawsvg_py
+from import_drawsvg import import_drawsvg_py
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -33,6 +34,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def _build_menu(self):
         file_menu = self.menuBar().addMenu("&Datei")
 
+        act_load_py = QtGui.QAction("Load drawsvg-.py", self)
+        act_load_py.triggered.connect(self.load_drawsvg_py)
+        file_menu.addAction(act_load_py)
+
         act_save_py = QtGui.QAction("Save drawsvg-.py", self)
         act_save_py.triggered.connect(self.export_drawsvg_py)
         file_menu.addAction(act_save_py)
@@ -50,3 +55,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def export_drawsvg_py(self):
         export_drawsvg_py(self.canvas.scene(), self)
+
+    def load_drawsvg_py(self):
+        import_drawsvg_py(self.canvas.scene(), self)
