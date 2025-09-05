@@ -17,6 +17,10 @@ class CanvasView(QtWidgets.QGraphicsView):
         self.setScene(scene)
         self.setBackgroundBrush(QtGui.QColor("#fafafa"))
 
+    def clear_canvas(self):
+        """Remove all items from the scene."""
+        self.scene().clear()
+
     # --- Drag&Drop aus der Palette ---
     def dragEnterEvent(self, event: QtGui.QDragEnterEvent):
         md = event.mimeData()
