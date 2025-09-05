@@ -345,6 +345,9 @@ class CanvasView(QtWidgets.QGraphicsView):
 
     # --- Context menu for adjusting colors and line width ---
     def contextMenuEvent(self, event: QtGui.QContextMenuEvent):
+        if event.modifiers() & QtCore.Qt.KeyboardModifier.AltModifier:
+            event.accept()
+            return
         pos = event.pos()
         item = self.itemAt(pos)
         if not item:
