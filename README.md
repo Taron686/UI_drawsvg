@@ -31,6 +31,7 @@ python src/main.py
 * **Mouse adjustments:**
   * `Ctrl` + left drag duplicates selected objects.
   * `Ctrl` or `Shift` + left click adds items to the current selection.
+* **Canvas panning:** Hold the mouse wheel button or drag with the right mouse button to move around the canvas.
 * Drag the rotation icon above the top-right corner of a selected object to rotate it. Rotations snap to 5° increments by default; hold `Alt` while dragging for smooth rotation. A temporary label with a light gray background below the object displays the current angle during the operation.
 * **Context menu:** Right-click an object to modify colors, line width or text size.
 * **Export/Import:** Use the `File` menu to export scenes as `drawsvg` Python files or load them back again.
