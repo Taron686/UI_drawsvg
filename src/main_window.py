@@ -33,6 +33,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def _build_menu(self):
         menu = self.menuBar().addMenu("&Datei")
 
+        act_load_py = QtGui.QAction("load drawsvg.py", self)
+        act_load_py.triggered.connect(self.load_drawsvg_py)
+        menu.addAction(act_load_py)
+
         act_save_py = QtGui.QAction("Als drawsvg-.py speichern…", self)
         act_save_py.triggered.connect(self.export_drawsvg_py)
         menu.addAction(act_save_py)
@@ -45,3 +49,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def export_drawsvg_py(self):
         export_drawsvg_py(self.canvas.scene(), self)
+
+    def load_drawsvg_py(self):
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "drawsvg-.py laden…",
+            "",
+            "Python (*.py)",
+        )
+        if path:
+            try:
+                self.canvas.load_drawsvg_py(path)
+                self.statusBar().showMessage(f"Geladen: {path}", 5000)
+            except Exception as e:
+                QtWidgets.QMessageBox.critical(self, "Fehler beim Laden", str(e))
