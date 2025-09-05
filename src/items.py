@@ -14,14 +14,13 @@ class ResizeHandle(QtWidgets.QGraphicsEllipseItem):
         super().__init__(-HANDLE_SIZE / 2.0, -HANDLE_SIZE / 2.0, HANDLE_SIZE, HANDLE_SIZE, parent)
         self.setBrush(HANDLE_COLOR)
         self.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
-        self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
-        self.setFlag(
-            QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemSendsScenePositionChanges, True
-        )
+        self.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
         self.setCursor(self._cursor_for_direction(direction))
         self._direction = direction
         self._start_rect = None
         self._start_pos = None
+        self._parent_start_pos = None
+        self._parent_was_movable = False
 
     @staticmethod
     def _cursor_for_direction(direction: str) -> QtCore.Qt.CursorShape:
@@ -45,11 +44,20 @@ class ResizeHandle(QtWidgets.QGraphicsEllipseItem):
         else:
             self._start_rect = QtCore.QRectF(parent.boundingRect())
         self._parent_start_pos = QtCore.QPointF(parent.pos())
-        super().mousePressEvent(event)
+        flags = parent.flags()
+        self._parent_was_movable = bool(
+            flags & QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+        )
+        if self._parent_was_movable:
+            parent.setFlag(
+                QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable,
+                False,
+            )
+        event.accept()
 
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
         if self._start_pos is None:
-            super().mouseMoveEvent(event)
+            event.ignore()
             return
         delta = event.scenePos() - self._start_pos
         parent = self.parentItem()
@@ -88,12 +96,19 @@ class ResizeHandle(QtWidgets.QGraphicsEllipseItem):
         parent.setPos(pos)
         if hasattr(parent, "update_handles"):
             parent.update_handles()
-        super().mouseMoveEvent(event)
+        event.accept()
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
+        parent = self.parentItem()
+        if self._parent_was_movable:
+            parent.setFlag(
+                QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable,
+                True,
+            )
+            self._parent_was_movable = False
         self._start_pos = None
         self._start_rect = None
-        super().mouseReleaseEvent(event)
+        event.accept()
 
 
 class ResizableItem:
