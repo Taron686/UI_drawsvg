@@ -104,6 +104,14 @@ class CanvasView(QtWidgets.QGraphicsView):
         y = scene_pos.y()
 
         w, h = DEFAULTS[shape]
+        mods = event.keyboardModifiers()
+        if not mods & QtCore.Qt.KeyboardModifier.AltModifier:
+            size = self._grid_size
+            x = round(x / size) * size
+            y = round(y / size) * size
+            if shape in ("Line", "Arrow"):
+                w = round(w / size) * size
+
         if shape == "Rectangle":
             item = RectItem(x, y, w, h)
         elif shape in ("Circle", "Ellipse"):
