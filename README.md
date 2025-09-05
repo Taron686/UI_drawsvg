@@ -1,13 +1,23 @@
 # DrawSVG UI
 
-This project provides a simple graphical interface for drawing SVG shapes with [PySide6](https://doc.qt.io/qtforpython/). Drag and drop objects from the palette onto the canvas and adjust them as needed.
+This repository provides a graphical user interface designed to make it easier to create files with the [drawsvg](https://pypi.org/project/drawsvg/) library.  
+Instead of writing raw Python code by hand, you can visually place, move, and edit shapes on a canvas, then export your work as a ready-to-use `drawsvg` file.
+
+The goal of this project is to help users quickly prototype and generate `drawsvg` code through an intuitive drag-and-drop UI built with [PySide6](https://doc.qt.io/qtforpython/).
 
 ## Requirements
-The application requires **Python 3.10**. Install the dependencies listed in `requirements.txt` with:
+
+The application requires **Python 3.10**.  
+Dependencies include:
+
+* **drawsvg**  
+* **PySide6**
+
+Install all dependencies with:
 
 ```bash
 python -m pip install -r requirements.txt
-```
+
 
 ## Running the Application
 After installing the dependencies, start the application with:
