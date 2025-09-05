@@ -240,7 +240,7 @@ class RotationHandle(QtWidgets.QGraphicsPixmapItem):
         if not parent:
             return
         scene_rect = parent.mapToScene(parent.boundingRect()).boundingRect()
-        pos = QtCore.QPointF(scene_rect.center().x(), scene_rect.bottom() + 5)
+        pos = QtCore.QPointF(scene_rect.center().x(), scene_rect.bottom() + 25)
         br = self._angle_label.boundingRect()
         self._angle_label.setPos(pos.x() - br.width() / 2.0, pos.y())
         if self._angle_label_bg:
