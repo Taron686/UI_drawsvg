@@ -178,7 +178,10 @@ class CanvasView(QtWidgets.QGraphicsView):
         if self._panning:
             delta = event.position() - self._pan_start
             self._pan_start = event.position()
-            self.translate(delta.x(), delta.y())
+            hbar = self.horizontalScrollBar()
+            vbar = self.verticalScrollBar()
+            hbar.setValue(hbar.value() - int(delta.x()))
+            vbar.setValue(vbar.value() - int(delta.y()))
             event.accept()
             return
         if getattr(self, "_dup_source", None):
