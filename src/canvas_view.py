@@ -16,10 +16,28 @@ class CanvasView(QtWidgets.QGraphicsView):
         scene.setSceneRect(0, 0, 1000, 700)
         self.setScene(scene)
         self.setBackgroundBrush(QtGui.QColor("#fafafa"))
+        self._grid_size = 20
 
     def clear_canvas(self):
         """Remove all items from the scene."""
         self.scene().clear()
+
+    def drawBackground(self, painter: QtGui.QPainter, rect: QtCore.QRectF):
+        super().drawBackground(painter, rect)
+        left = int(rect.left()) - int(rect.left()) % self._grid_size
+        top = int(rect.top()) - int(rect.top()) % self._grid_size
+        lines = []
+        x = left
+        while x < rect.right():
+            lines.append(QtCore.QLineF(x, rect.top(), x, rect.bottom()))
+            x += self._grid_size
+        y = top
+        while y < rect.bottom():
+            lines.append(QtCore.QLineF(rect.left(), y, rect.right(), y))
+            y += self._grid_size
+        pen = QtGui.QPen(QtGui.QColor("#D0D0D0"))
+        painter.setPen(pen)
+        painter.drawLines(lines)
 
     # --- Drag and drop from the palette ---
     def dragEnterEvent(self, event: QtGui.QDragEnterEvent):
