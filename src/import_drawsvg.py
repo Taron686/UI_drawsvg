@@ -17,8 +17,19 @@ def _parse_call(line: str) -> tuple[list[Any], dict[str, Any]]:
     """Parse a drawsvg call line and return args and kwargs."""
     call_src = line.split("=", 1)[1].strip()
     node = ast.parse(call_src, mode="eval").body
-    args = [ast.literal_eval(a) for a in node.args]
-    kwargs = {kw.arg: ast.literal_eval(kw.value) for kw in node.keywords}
+    args = []
+    for a in node.args:
+        if isinstance(a, ast.Name):
+            args.append(a.id)
+        else:
+            args.append(ast.literal_eval(a))
+    kwargs: dict[str, Any] = {}
+    for kw in node.keywords:
+        v = kw.value
+        if isinstance(v, ast.Name):
+            kwargs[kw.arg] = v.id
+        else:
+            kwargs[kw.arg] = ast.literal_eval(v)
     return args, kwargs
 
 
@@ -123,6 +134,36 @@ def import_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
                     item.setRotation(_parse_rotate(kwargs["transform"]))
                 item.setData(0, "Triangle")
                 scene.addItem(item)
+            elif line.startswith("_path = draw.Path("):
+                args, kwargs = _parse_call(line)
+                if args:
+                    cmd = args[0]
+                    parts = cmd.split()
+                    if len(parts) >= 6 and parts[0] == "M" and parts[3] == "L":
+                        x1 = float(parts[1])
+                        y1 = float(parts[2])
+                        x2 = float(parts[4])
+                        y2 = float(parts[5])
+                        dx, dy = x2 - x1, y2 - y1
+                        length = math.hypot(dx, dy)
+                        angle = math.degrees(math.atan2(dy, dx))
+                        if "transform" in kwargs:
+                            angle = _parse_rotate(kwargs["transform"])
+                        cx = (x1 + x2) / 2.0
+                        cy = (y1 + y2) / 2.0
+                        arrow_start = "marker_start" in kwargs
+                        arrow_end = "marker_end" in kwargs
+                        item = LineItem(
+                            cx - length / 2.0,
+                            cy,
+                            length,
+                            arrow_start=arrow_start,
+                            arrow_end=arrow_end,
+                        )
+                        _apply_style(item, kwargs)
+                        item.setRotation(angle)
+                        item.setData(0, "Arrow" if arrow_start or arrow_end else "Line")
+                        scene.addItem(item)
             elif line.startswith("_line = draw.Line("):
                 args, kwargs = _parse_call(line)
                 x1, y1, x2, y2 = map(float, args[:4])
