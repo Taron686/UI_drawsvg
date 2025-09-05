@@ -80,7 +80,9 @@ class CanvasView(QtWidgets.QGraphicsView):
         bottom = math.ceil(max(A4_HEIGHT, rect.bottom()) / A4_HEIGHT) * A4_HEIGHT
         new_rect = QtCore.QRectF(left, top, right - left, bottom - top)
         if new_rect != scene.sceneRect():
+            view_center = self.mapToScene(self.viewport().rect().center())
             scene.setSceneRect(new_rect)
+            self.centerOn(view_center)
 
     def drawBackground(self, painter: QtGui.QPainter, rect: QtCore.QRectF):
         super().drawBackground(painter, rect)
