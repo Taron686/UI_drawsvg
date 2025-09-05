@@ -266,9 +266,22 @@ class CanvasView(QtWidgets.QGraphicsView):
         clone.setData(0, item.data(0))
         return clone
 
-    # --- Central mouse wheel logic for all selected items ---
+    # --- Mouse wheel zooming and scrolling ---
     def wheelEvent(self, event: QtGui.QWheelEvent):
-        """Default wheel behaviour without rotation support."""
+        mods = event.modifiers()
+        if mods & (
+            QtCore.Qt.KeyboardModifier.ControlModifier
+            | QtCore.Qt.KeyboardModifier.AltModifier
+        ):
+            anchor = self.transformationAnchor()
+            self.setTransformationAnchor(
+                QtWidgets.QGraphicsView.ViewportAnchor.AnchorUnderMouse
+            )
+            factor = 1.2 if event.angleDelta().y() > 0 else 1 / 1.2
+            self.scale(factor, factor)
+            self.setTransformationAnchor(anchor)
+            event.accept()
+            return
         super().wheelEvent(event)
 
     # --- Keyboard shortcut to delete selected items ---
@@ -322,7 +335,13 @@ class CanvasView(QtWidgets.QGraphicsView):
         pos = event.pos()
         item = self.itemAt(pos)
         if not item:
-            super().contextMenuEvent(event)
+            menu = QtWidgets.QMenu(self)
+            reset_act = menu.addAction("Reset zoom")
+            action = menu.exec(event.globalPos())
+            if action is reset_act:
+                self.resetTransform()
+            else:
+                super().contextMenuEvent(event)
             return
 
         menu = QtWidgets.QMenu(self)
