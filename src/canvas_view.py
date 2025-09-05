@@ -1,6 +1,8 @@
+import math
+
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from constants import PALETTE_MIME, SHAPES, DEFAULTS
+from constants import PALETTE_MIME, SHAPES, DEFAULTS, A4_WIDTH, A4_HEIGHT
 from items import RectItem, EllipseItem, LineItem, TextItem, TriangleItem
 
 # Minimum mouse movement (in scene coordinates) required before
@@ -46,10 +48,12 @@ class CanvasView(QtWidgets.QGraphicsView):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
         scene = QtWidgets.QGraphicsScene(self)
-        scene.setSceneRect(0, 0, 1000, 700)
+        scene.setSceneRect(0, 0, A4_WIDTH, A4_HEIGHT)
         self.setScene(scene)
         self.setBackgroundBrush(QtGui.QColor("#fafafa"))
         self._grid_size = 20
+        scene.changed.connect(self._update_canvas_bounds)
+        self._update_canvas_bounds()
 
         self._panning = False
         self._pan_start = QtCore.QPointF()
@@ -58,6 +62,23 @@ class CanvasView(QtWidgets.QGraphicsView):
     def clear_canvas(self):
         """Remove all items from the scene."""
         self.scene().clear()
+
+    def _update_canvas_bounds(self, _=None):
+        scene = self.scene()
+        items = [it for it in scene.items() if it.data(0) in SHAPES]
+        if items:
+            rect = items[0].sceneBoundingRect()
+            for it in items[1:]:
+                rect = rect.united(it.sceneBoundingRect())
+        else:
+            rect = QtCore.QRectF()
+        left = math.floor(min(0.0, rect.left()) / A4_WIDTH) * A4_WIDTH
+        top = math.floor(min(0.0, rect.top()) / A4_HEIGHT) * A4_HEIGHT
+        right = math.ceil(max(A4_WIDTH, rect.right()) / A4_WIDTH) * A4_WIDTH
+        bottom = math.ceil(max(A4_HEIGHT, rect.bottom()) / A4_HEIGHT) * A4_HEIGHT
+        new_rect = QtCore.QRectF(left, top, right - left, bottom - top)
+        if new_rect != scene.sceneRect():
+            scene.setSceneRect(new_rect)
 
     def drawBackground(self, painter: QtGui.QPainter, rect: QtCore.QRectF):
         super().drawBackground(painter, rect)

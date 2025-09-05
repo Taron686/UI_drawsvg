@@ -1,5 +1,9 @@
 from PySide6 import QtCore, QtGui
 
+# DIN A4 size in pixels at 96 DPI
+A4_WIDTH = 210 / 25.4 * 96
+A4_HEIGHT = 297 / 25.4 * 96
+
 PALETTE_MIME = "application/x-drawsvg-shape"
 SHAPES = (
     "Rectangle",
