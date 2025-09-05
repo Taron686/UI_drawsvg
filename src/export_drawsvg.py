@@ -195,10 +195,15 @@ def export_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
             ang = it.rotation()
             font = it.font()
             size = font.pointSizeF()
+            if size <= 0:  # fall back to pixel size when point size is unset
+                size = float(font.pixelSize())
             text = it.toPlainText().replace("'", "\'")
-            color = it.defaultTextColor().name()
+            color = it.defaultTextColor()
+            attrs = [f"fill='{color.name()}'"]
+            if color.alphaF() < 1.0:
+                attrs.append(f"fill_opacity={color.alphaF():.2f}")
+            attr_str = ", ".join(attrs)
             baseline = y + br.height()
-            attr_str = f"fill='{color}'"
             if abs(ang) > 1e-6:
                 lines.append(
                     f"    _text = draw.Text('{text}', {size:.2f}, {x:.2f}, {baseline:.2f}, {attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
