@@ -39,7 +39,10 @@ def _apply_style(item: QtWidgets.QGraphicsItem, kwargs: dict[str, Any]) -> None:
         item.setPen(pen)
     elif isinstance(item, TextItem):
         if "fill" in kwargs:
-            item.setDefaultTextColor(QtGui.QColor(kwargs["fill"]))
+            color = QtGui.QColor(kwargs["fill"])
+            if "fill_opacity" in kwargs:
+                color.setAlphaF(float(kwargs["fill_opacity"]))
+            item.setDefaultTextColor(color)
 
 
 def _parse_rotate(val: str) -> float:
