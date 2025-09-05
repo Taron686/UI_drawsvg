@@ -17,7 +17,7 @@ Install all dependencies with:
 
 ```bash
 python -m pip install -r requirements.txt
-
+```
 
 ## Running the Application
 After installing the dependencies, start the application with:

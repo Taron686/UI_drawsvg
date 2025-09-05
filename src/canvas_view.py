@@ -5,37 +5,22 @@ from items import RectItem, EllipseItem, LineItem, TextItem
 
 
 class CornerRadiusDialog(QtWidgets.QDialog):
-    def __init__(self, rx: float, ry: float, parent=None):
+    def __init__(self, radius: float, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Corner radius")
 
         layout = QtWidgets.QFormLayout(self)
 
-        self.rx_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
-        self.rx_slider.setRange(0, 50)
-        self.rx_slider.setValue(int(rx))
-        self.rx_label = QtWidgets.QLabel(str(int(rx)))
-        self.rx_label.setFixedWidth(40)
-        self.rx_slider.valueChanged.connect(
-            lambda v: self.rx_label.setText(str(v))
-        )
-        rx_layout = QtWidgets.QHBoxLayout()
-        rx_layout.addWidget(self.rx_slider)
-        rx_layout.addWidget(self.rx_label)
-        layout.addRow("rx", rx_layout)
-
-        self.ry_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
-        self.ry_slider.setRange(0, 50)
-        self.ry_slider.setValue(int(ry))
-        self.ry_label = QtWidgets.QLabel(str(int(ry)))
-        self.ry_label.setFixedWidth(40)
-        self.ry_slider.valueChanged.connect(
-            lambda v: self.ry_label.setText(str(v))
-        )
-        ry_layout = QtWidgets.QHBoxLayout()
-        ry_layout.addWidget(self.ry_slider)
-        ry_layout.addWidget(self.ry_label)
-        layout.addRow("ry", ry_layout)
+        self.slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        self.slider.setRange(0, 50)
+        self.slider.setValue(int(radius))
+        self.label = QtWidgets.QLabel(str(int(radius)))
+        self.label.setFixedWidth(40)
+        self.slider.valueChanged.connect(lambda v: self.label.setText(str(v)))
+        radius_layout = QtWidgets.QHBoxLayout()
+        radius_layout.addWidget(self.slider)
+        radius_layout.addWidget(self.label)
+        layout.addRow("radius", radius_layout)
 
         buttons = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
@@ -44,8 +29,8 @@ class CornerRadiusDialog(QtWidgets.QDialog):
         buttons.rejected.connect(self.reject)
         layout.addRow(buttons)
 
-    def values(self) -> tuple[int, int]:
-        return self.rx_slider.value(), self.ry_slider.value()
+    def value(self) -> int:
+        return self.slider.value()
 
 
 class CanvasView(QtWidgets.QGraphicsView):
@@ -264,11 +249,10 @@ class CanvasView(QtWidgets.QGraphicsView):
                 item.setPen(pen)
                 item.update()
         elif action is corner_act and isinstance(item, RectItem):
-            dlg = CornerRadiusDialog(item.rx, item.ry, self)
+            dlg = CornerRadiusDialog(item.rx, self)
             if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-                rx_val, ry_val = dlg.values()
-                item.rx = min(float(rx_val), 50.0)
-                item.ry = min(float(ry_val), 50.0)
+                val = dlg.value()
+                item.rx = item.ry = min(float(val), 50.0)
                 item.update()
         elif action is color_act:
             color = QtWidgets.QColorDialog.getColor(item.defaultTextColor(), self, "Text color")
