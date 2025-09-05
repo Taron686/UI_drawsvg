@@ -33,6 +33,6 @@ python src/main.py
   * `Alt` + mouse wheel rotates selected objects.
 * **Context menu:** Right-click an object to modify colors, line width or text size.
 * **Export/Import:** Use the `File` menu to export scenes as `drawsvg` Python files or load them back again.
-* **Clear canvas:** Remove all objects via `Edit` → `Canvas delete`.
+* **Clear canvas:** Remove all objects via `Edit` → `Clear canvas`.
 
 

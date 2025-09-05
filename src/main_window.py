@@ -28,11 +28,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._build_menu()
         self.statusBar().showMessage(
-            "Tipp: Strg+Mausrad = Größe (für selektierte Objekte), Alt+Mausrad = Rotation (global)"
+            "Tip: Ctrl+mouse wheel = size (for selected objects), Alt+mouse wheel = rotation (global)"
         )
 
     def _build_menu(self):
-        file_menu = self.menuBar().addMenu("&Datei")
+        file_menu = self.menuBar().addMenu("&File")
 
         act_load_py = QtGui.QAction("Load drawsvg-.py", self)
         act_load_py.triggered.connect(self.load_drawsvg_py)
@@ -43,13 +43,13 @@ class MainWindow(QtWidgets.QMainWindow):
         file_menu.addAction(act_save_py)
 
         file_menu.addSeparator()
-        act_quit = QtGui.QAction("Beenden", self)
+        act_quit = QtGui.QAction("Quit", self)
         act_quit.setShortcut(QtGui.QKeySequence(QtGui.QKeySequence.StandardKey.Quit))
         act_quit.triggered.connect(self.close)
         file_menu.addAction(act_quit)
 
         edit_menu = self.menuBar().addMenu("&Edit")
-        act_clear_canvas = QtGui.QAction("Canvas delete", self)
+        act_clear_canvas = QtGui.QAction("Clear canvas", self)
         act_clear_canvas.triggered.connect(self.canvas.clear_canvas)
         edit_menu.addAction(act_clear_canvas)
 
