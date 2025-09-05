@@ -139,13 +139,13 @@ def export_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
     lines.append("")
     lines.append("if __name__ == '__main__':")
     lines.append("    d = build_drawing()")
-    lines.append("    # Erstellt eine SVG-Datei neben dem Skript:")
+    lines.append("    # Creates an SVG file next to the script:")
     lines.append("    d.save_svg('canvas.svg')")
 
     code = "\n".join(lines)
     path, _ = QtWidgets.QFileDialog.getSaveFileName(
         parent,
-        "Als drawsvg-.py speichern…",
+        "Save as drawsvg-.py…",
         "canvas_drawsvg.py",
         "Python (*.py)",
     )
@@ -154,6 +154,6 @@ def export_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
             with open(path, "w", encoding="utf-8") as f:
                 f.write(code)
             if parent is not None:
-                parent.statusBar().showMessage(f"Exportiert: {path}", 5000)
+                parent.statusBar().showMessage(f"Exported: {path}", 5000)
         except Exception as e:
-            QtWidgets.QMessageBox.critical(parent, "Fehler beim Speichern", str(e))
+            QtWidgets.QMessageBox.critical(parent, "Error saving file", str(e))

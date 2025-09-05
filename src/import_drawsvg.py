@@ -51,7 +51,7 @@ def _parse_rotate(val: str) -> float:
 
 def import_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget | None = None) -> None:
     path, _ = QtWidgets.QFileDialog.getOpenFileName(
-        parent, "drawsvg-.py laden…", "", "Python (*.py)"
+        parent, "Load drawsvg-.py…", "", "Python (*.py)"
     )
     if not path:
         return
@@ -122,6 +122,6 @@ def import_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
                 item.setData(0, "Text")
                 scene.addItem(item)
         if parent is not None:
-            parent.statusBar().showMessage(f"Geladen: {path}", 5000)
+            parent.statusBar().showMessage(f"Loaded: {path}", 5000)
     except Exception as e:
-        QtWidgets.QMessageBox.critical(parent, "Fehler beim Laden", str(e))
+        QtWidgets.QMessageBox.critical(parent, "Error loading file", str(e))

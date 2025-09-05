@@ -21,7 +21,7 @@ class CanvasView(QtWidgets.QGraphicsView):
         """Remove all items from the scene."""
         self.scene().clear()
 
-    # --- Drag&Drop aus der Palette ---
+    # --- Drag and drop from the palette ---
     def dragEnterEvent(self, event: QtGui.QDragEnterEvent):
         md = event.mimeData()
         if md.hasFormat(PALETTE_MIME) or md.hasText():
@@ -67,7 +67,7 @@ class CanvasView(QtWidgets.QGraphicsView):
         item.setSelected(True)
         event.acceptProposedAction()
 
-    # --- Zentrale Mausrad-Logik für alle selektierten Items ---
+    # --- Central mouse wheel logic for all selected items ---
     def wheelEvent(self, event: QtGui.QWheelEvent):
         mods = event.modifiers()
         delta = event.angleDelta()
@@ -115,7 +115,7 @@ class CanvasView(QtWidgets.QGraphicsView):
 
         super().wheelEvent(event)
 
-    # --- Kontextmenü zum Anpassen von Farben und Linienbreite ---
+    # --- Context menu for adjusting colors and line width ---
     def contextMenuEvent(self, event: QtGui.QContextMenuEvent):
         pos = event.pos()
         item = self.itemAt(pos)
@@ -142,10 +142,10 @@ class CanvasView(QtWidgets.QGraphicsView):
             stroke_act = menu.addAction("Set stroke color…")
             width_act = menu.addAction("Set stroke width…")
         menu.addSeparator()
-        back1_act = menu.addAction("Eine Ebene nach hinten")
-        front1_act = menu.addAction("Eine Ebene nach vorne")
-        back_act = menu.addAction("Ganz nach hinten")
-        front_act = menu.addAction("Ganz nach vorne")
+        back1_act = menu.addAction("Send backward")
+        front1_act = menu.addAction("Bring forward")
+        back_act = menu.addAction("Send to back")
+        front_act = menu.addAction("Bring to front")
 
         action = menu.exec(event.globalPos())
         if not action:
