@@ -28,7 +28,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._build_menu()
         self.statusBar().showMessage(
-            "Tip: Ctrl+mouse wheel = size (for selected objects), Alt+mouse wheel = rotation (global)"
+            "Tip: Ctrl+drag duplicates selected objects, Alt+mouse wheel rotates"
         )
 
     def _build_menu(self):

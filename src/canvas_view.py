@@ -116,6 +116,84 @@ class CanvasView(QtWidgets.QGraphicsView):
         item.setSelected(True)
         event.acceptProposedAction()
 
+    # --- Duplicate selected items with Ctrl+drag ---
+    def mousePressEvent(self, event: QtGui.QMouseEvent):
+        if (
+            event.button() == QtCore.Qt.MouseButton.LeftButton
+            and (event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier)
+        ):
+            selected = self.scene().selectedItems()
+            if selected:
+                self._dup_items = []
+                self._dup_orig = []
+                for it in selected:
+                    clone = self._clone_item(it)
+                    if clone:
+                        self.scene().addItem(clone)
+                        self._dup_items.append(clone)
+                        self._dup_orig.append(clone.pos())
+                self.scene().clearSelection()
+                for it in self._dup_items:
+                    it.setSelected(True)
+                self._dup_start = self.mapToScene(event.position().toPoint())
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent):
+        if getattr(self, "_dup_items", None):
+            pos = self.mapToScene(event.position().toPoint())
+            delta = pos - self._dup_start
+            for it, start in zip(self._dup_items, self._dup_orig):
+                it.setPos(start + delta)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
+        if (
+            event.button() == QtCore.Qt.MouseButton.LeftButton
+            and getattr(self, "_dup_items", None)
+        ):
+            self._dup_items = []
+            self._dup_orig = []
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def _clone_item(self, item: QtWidgets.QGraphicsItem):
+        if isinstance(item, RectItem):
+            r = item.rect()
+            clone = RectItem(item.x(), item.y(), r.width(), r.height(), getattr(item, "rx", 0.0), getattr(item, "ry", 0.0))
+            clone.setBrush(item.brush())
+            clone.setPen(item.pen())
+        elif isinstance(item, EllipseItem):
+            r = item.rect()
+            clone = EllipseItem(item.x(), item.y(), r.width(), r.height())
+            clone.setBrush(item.brush())
+            clone.setPen(item.pen())
+        elif isinstance(item, TriangleItem):
+            br = item.boundingRect()
+            clone = TriangleItem(item.x(), item.y(), br.width(), br.height())
+            clone.setBrush(item.brush())
+            clone.setPen(item.pen())
+        elif isinstance(item, LineItem):
+            clone = LineItem(item.x(), item.y(), item._length)
+            clone.setPen(item.pen())
+        elif isinstance(item, TextItem):
+            br = item.boundingRect()
+            clone = TextItem(item.x(), item.y(), br.width(), br.height())
+            clone.setPlainText(item.toPlainText())
+            clone.setFont(item.font())
+            clone.setDefaultTextColor(item.defaultTextColor())
+            br = clone.boundingRect()
+            clone.setTransformOriginPoint(br.width() / 2.0, br.height() / 2.0)
+        else:
+            return None
+        clone.setRotation(item.rotation())
+        clone.setData(0, item.data(0))
+        return clone
+
     # --- Central mouse wheel logic for all selected items ---
     def wheelEvent(self, event: QtGui.QWheelEvent):
         mods = event.modifiers()
@@ -128,46 +206,6 @@ class CanvasView(QtWidgets.QGraphicsView):
             step_deg = 5.0
             for it in selected:
                 it.setRotation(it.rotation() + dy * step_deg)
-            event.accept()
-            return
-
-        if selected and (mods & QtCore.Qt.KeyboardModifier.ControlModifier):
-            factor = 1.0 + dy * 0.1
-            if factor <= 0:
-                factor = 0.05
-            for it in selected:
-                if isinstance(it, QtWidgets.QGraphicsRectItem):
-                    r = it.rect()
-                    new_w = max(10.0, r.width() * factor)
-                    new_h = max(10.0, r.height() * factor)
-                    it.setRect(0, 0, new_w, new_h)
-                    it.setTransformOriginPoint(new_w / 2.0, new_h / 2.0)
-                    if hasattr(it, "rx"):
-                        it.rx = min(it.rx * factor, 50.0)
-                    if hasattr(it, "ry"):
-                        it.ry = min(it.ry * factor, 50.0)
-                elif isinstance(it, QtWidgets.QGraphicsEllipseItem):
-                    r = it.rect()
-                    new_w = max(10.0, r.width() * factor)
-                    new_h = max(10.0, r.height() * factor)
-                    it.setRect(0, 0, new_w, new_h)
-                    it.setTransformOriginPoint(new_w / 2.0, new_h / 2.0)
-                elif isinstance(it, TriangleItem):
-                    br = it.boundingRect()
-                    new_w = max(10.0, br.width() * factor)
-                    new_h = max(10.0, br.height() * factor)
-                    it.set_size(new_w, new_h)
-                elif isinstance(it, LineItem):
-                    it._length = max(10.0, it._length * factor)
-                    it.setLine(0.0, 0.0, it._length, 0.0)
-                    it.setTransformOriginPoint(it._length / 2.0, 0.0)
-                elif isinstance(it, TextItem):
-                    font = it.font()
-                    new_size = max(1.0, font.pointSizeF() * factor)
-                    font.setPointSizeF(new_size)
-                    it.setFont(font)
-                    br = it.boundingRect()
-                    it.setTransformOriginPoint(br.width() / 2.0, br.height() / 2.0)
             event.accept()
             return
 

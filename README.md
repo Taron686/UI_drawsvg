@@ -29,7 +29,7 @@ python src/main.py
 ## UI Features
 * **Create shapes:** Drag rectangles, ellipses, circles, triangles, lines and text from the palette onto the canvas.
 * **Mouse adjustments:**
-  * `Ctrl` + mouse wheel changes the size of selected objects.
+  * `Ctrl` + left drag duplicates selected objects.
   * `Alt` + mouse wheel rotates selected objects.
 * **Context menu:** Right-click an object to modify colors, line width or text size.
 * **Export/Import:** Use the `File` menu to export scenes as `drawsvg` Python files or load them back again.
