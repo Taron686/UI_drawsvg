@@ -54,6 +54,8 @@ class CanvasView(QtWidgets.QGraphicsView):
         self._panning = False
         self._pan_start = QtCore.QPointF()
         self._prev_drag_mode = self.dragMode()
+        self._right_button_pressed = False
+        self._suppress_context_menu = False
 
     def clear_canvas(self):
         """Remove all items from the scene."""
@@ -136,15 +138,19 @@ class CanvasView(QtWidgets.QGraphicsView):
 
     # --- Duplicate selected items with Ctrl+drag ---
     def mousePressEvent(self, event: QtGui.QMouseEvent):
-        if event.button() == QtCore.Qt.MouseButton.MiddleButton or (
-            event.button() == QtCore.Qt.MouseButton.RightButton
-            and event.modifiers() & QtCore.Qt.KeyboardModifier.AltModifier
-        ):
+        if event.button() == QtCore.Qt.MouseButton.MiddleButton:
             self._panning = True
             self._pan_start = event.position()
             self._prev_drag_mode = self.dragMode()
             self.setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
             self.viewport().setCursor(QtCore.Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+            return
+        if event.button() == QtCore.Qt.MouseButton.RightButton:
+            self._right_button_pressed = True
+            self._pan_start = event.position()
+            self._prev_drag_mode = self.dragMode()
+            self._suppress_context_menu = False
             event.accept()
             return
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
@@ -178,15 +184,26 @@ class CanvasView(QtWidgets.QGraphicsView):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
-        if self._panning:
+        if self._panning or self._right_button_pressed:
             delta = event.position() - self._pan_start
-            self._pan_start = event.position()
-            hbar = self.horizontalScrollBar()
-            vbar = self.verticalScrollBar()
-            hbar.setValue(hbar.value() - int(delta.x()))
-            vbar.setValue(vbar.value() - int(delta.y()))
-            event.accept()
-            return
+            if (
+                self._right_button_pressed
+                and not self._panning
+                and delta.manhattanLength() > 0
+            ):
+                self._panning = True
+                self.setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
+                self.viewport().setCursor(
+                    QtCore.Qt.CursorShape.ClosedHandCursor
+                )
+            if self._panning:
+                self._pan_start = event.position()
+                hbar = self.horizontalScrollBar()
+                vbar = self.verticalScrollBar()
+                hbar.setValue(hbar.value() - int(delta.x()))
+                vbar.setValue(vbar.value() - int(delta.y()))
+                event.accept()
+                return
         if getattr(self, "_dup_source", None):
             pos = self.mapToScene(event.position().toPoint())
             delta = pos - self._dup_start
@@ -213,10 +230,23 @@ class CanvasView(QtWidgets.QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
+        if event.button() == QtCore.Qt.MouseButton.RightButton:
+            if self._panning:
+                self._panning = False
+                self._right_button_pressed = False
+                self.setDragMode(self._prev_drag_mode)
+                self.viewport().setCursor(
+                    QtCore.Qt.CursorShape.ArrowCursor
+                )
+                self._suppress_context_menu = True
+                event.accept()
+                return
+            if self._right_button_pressed:
+                self._right_button_pressed = False
+                event.accept()
+                return
         if (
-            self._panning
-            and event.button()
-            in (QtCore.Qt.MouseButton.MiddleButton, QtCore.Qt.MouseButton.RightButton)
+            event.button() == QtCore.Qt.MouseButton.MiddleButton and self._panning
         ):
             self._panning = False
             self.setDragMode(self._prev_drag_mode)
@@ -345,7 +375,8 @@ class CanvasView(QtWidgets.QGraphicsView):
 
     # --- Context menu for adjusting colors and line width ---
     def contextMenuEvent(self, event: QtGui.QContextMenuEvent):
-        if event.modifiers() & QtCore.Qt.KeyboardModifier.AltModifier:
+        if self._suppress_context_menu:
+            self._suppress_context_menu = False
             event.accept()
             return
         pos = event.pos()
