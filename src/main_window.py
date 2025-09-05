@@ -2,7 +2,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from canvas_view import CanvasView
 from palette import PaletteList
-from export import export_drawsvg_py
+from export_drawsvg import export_drawsvg_py
 from import_drawsvg import import_drawsvg_py
 
 
