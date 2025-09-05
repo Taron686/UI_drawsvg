@@ -51,6 +51,10 @@ class CanvasView(QtWidgets.QGraphicsView):
         self.setBackgroundBrush(QtGui.QColor("#fafafa"))
         self._grid_size = 20
 
+        self._panning = False
+        self._pan_start = QtCore.QPointF()
+        self._prev_drag_mode = self.dragMode()
+
     def clear_canvas(self):
         """Remove all items from the scene."""
         self.scene().clear()
@@ -132,6 +136,14 @@ class CanvasView(QtWidgets.QGraphicsView):
 
     # --- Duplicate selected items with Ctrl+drag ---
     def mousePressEvent(self, event: QtGui.QMouseEvent):
+        if event.button() == QtCore.Qt.MouseButton.MiddleButton:
+            self._panning = True
+            self._pan_start = event.position()
+            self._prev_drag_mode = self.dragMode()
+            self.setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
+            self.viewport().setCursor(QtCore.Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+            return
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             mods = event.modifiers()
             if mods & (
@@ -163,6 +175,12 @@ class CanvasView(QtWidgets.QGraphicsView):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
+        if self._panning:
+            delta = event.position() - self._pan_start
+            self._pan_start = event.position()
+            self.translate(delta.x(), delta.y())
+            event.accept()
+            return
         if getattr(self, "_dup_source", None):
             pos = self.mapToScene(event.position().toPoint())
             delta = pos - self._dup_start
@@ -189,6 +207,12 @@ class CanvasView(QtWidgets.QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
+        if event.button() == QtCore.Qt.MouseButton.MiddleButton and self._panning:
+            self._panning = False
+            self.setDragMode(self._prev_drag_mode)
+            self.viewport().setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+            event.accept()
+            return
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             if getattr(self, "_dup_items", None):
                 self._dup_items = []
@@ -242,9 +266,22 @@ class CanvasView(QtWidgets.QGraphicsView):
         clone.setData(0, item.data(0))
         return clone
 
-    # --- Central mouse wheel logic for all selected items ---
+    # --- Mouse wheel zooming and scrolling ---
     def wheelEvent(self, event: QtGui.QWheelEvent):
-        """Default wheel behaviour without rotation support."""
+        mods = event.modifiers()
+        if mods & (
+            QtCore.Qt.KeyboardModifier.ControlModifier
+            | QtCore.Qt.KeyboardModifier.AltModifier
+        ):
+            anchor = self.transformationAnchor()
+            self.setTransformationAnchor(
+                QtWidgets.QGraphicsView.ViewportAnchor.AnchorUnderMouse
+            )
+            factor = 1.2 if event.angleDelta().y() > 0 else 1 / 1.2
+            self.scale(factor, factor)
+            self.setTransformationAnchor(anchor)
+            event.accept()
+            return
         super().wheelEvent(event)
 
     # --- Keyboard shortcut to delete selected items ---
@@ -298,7 +335,13 @@ class CanvasView(QtWidgets.QGraphicsView):
         pos = event.pos()
         item = self.itemAt(pos)
         if not item:
-            super().contextMenuEvent(event)
+            menu = QtWidgets.QMenu(self)
+            reset_act = menu.addAction("Reset zoom")
+            action = menu.exec(event.globalPos())
+            if action is reset_act:
+                self.resetTransform()
+            else:
+                super().contextMenuEvent(event)
             return
 
         menu = QtWidgets.QMenu(self)
