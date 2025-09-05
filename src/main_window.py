@@ -31,17 +31,22 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
     def _build_menu(self):
-        menu = self.menuBar().addMenu("&Datei")
+        file_menu = self.menuBar().addMenu("&Datei")
 
         act_save_py = QtGui.QAction("Als drawsvg-.py speichern…", self)
         act_save_py.triggered.connect(self.export_drawsvg_py)
-        menu.addAction(act_save_py)
+        file_menu.addAction(act_save_py)
 
-        menu.addSeparator()
+        file_menu.addSeparator()
         act_quit = QtGui.QAction("Beenden", self)
         act_quit.setShortcut(QtGui.QKeySequence(QtGui.QKeySequence.StandardKey.Quit))
         act_quit.triggered.connect(self.close)
-        menu.addAction(act_quit)
+        file_menu.addAction(act_quit)
+
+        edit_menu = self.menuBar().addMenu("&Edit")
+        act_clear_canvas = QtGui.QAction("Canvas delete", self)
+        act_clear_canvas.triggered.connect(self.canvas.clear_canvas)
+        edit_menu.addAction(act_clear_canvas)
 
     def export_drawsvg_py(self):
         export_drawsvg_py(self.canvas.scene(), self)
