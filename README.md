@@ -31,7 +31,7 @@ python src/main.py
 * **Mouse adjustments:**
   * `Ctrl` + left drag duplicates selected objects.
   * `Ctrl` or `Shift` + left click adds items to the current selection.
-  * `Alt` + mouse wheel rotates selected objects.
+* Drag the rotation icon above the top-left corner of a selected object to rotate it.
 * **Context menu:** Right-click an object to modify colors, line width or text size.
 * **Export/Import:** Use the `File` menu to export scenes as `drawsvg` Python files or load them back again.
 * **Clear canvas:** Remove all objects via `Edit` → `Clear canvas`.
