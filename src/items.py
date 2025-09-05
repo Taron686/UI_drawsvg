@@ -184,6 +184,80 @@ class ResizableItem:
         return super().itemChange(change, value)  # type: ignore[misc]
 
 
+class LineHandle(QtWidgets.QGraphicsEllipseItem):
+    """Handle placed at each end of a line for resizing/rotating."""
+
+    def __init__(self, parent: QtWidgets.QGraphicsLineItem, endpoint: str):
+        super().__init__(
+            -HANDLE_SIZE / 2.0,
+            -HANDLE_SIZE / 2.0,
+            HANDLE_SIZE,
+            HANDLE_SIZE,
+            parent,
+        )
+        self.setBrush(HANDLE_COLOR)
+        self.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
+        self.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
+        self.setCursor(QtCore.Qt.CursorShape.SizeAllCursor)
+        self._endpoint = endpoint  # "start" or "end"
+        self._line_start_scene = QtCore.QPointF()
+        self._line_end_scene = QtCore.QPointF()
+        self._parent_was_movable = False
+
+    def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
+        parent = self.parentItem()
+        line = parent.line()
+        self._line_start_scene = parent.mapToScene(line.p1())
+        self._line_end_scene = parent.mapToScene(line.p2())
+        flags = parent.flags()
+        self._parent_was_movable = bool(
+            flags & QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+        )
+        if self._parent_was_movable:
+            parent.setFlag(
+                QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False
+            )
+        event.accept()
+
+    def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
+        parent = self.parentItem()
+        if self._endpoint == "start":
+            new_start = event.scenePos()
+            end_scene = self._line_end_scene
+            parent.setPos(new_start)
+            parent.setLine(
+                0.0,
+                0.0,
+                end_scene.x() - new_start.x(),
+                end_scene.y() - new_start.y(),
+            )
+        else:  # end handle
+            start_scene = self._line_start_scene
+            new_end = event.scenePos()
+            parent.setPos(start_scene)
+            parent.setLine(
+                0.0,
+                0.0,
+                new_end.x() - start_scene.x(),
+                new_end.y() - start_scene.y(),
+            )
+        line = parent.line()
+        parent._length = line.length()
+        mid = QtCore.QPointF((line.x1() + line.x2()) / 2.0, (line.y1() + line.y2()) / 2.0)
+        parent.setTransformOriginPoint(mid)
+        parent.update_handles()
+        event.accept()
+
+    def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
+        parent = self.parentItem()
+        if self._parent_was_movable:
+            parent.setFlag(
+                QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True
+            )
+            self._parent_was_movable = False
+        event.accept()
+
+
 class RectItem(ResizableItem, QtWidgets.QGraphicsRectItem):
     def __init__(self, x, y, w, h, rx: float = 0.0, ry: float = 0.0):
         QtWidgets.QGraphicsRectItem.__init__(self, 0, 0, w, h)
@@ -301,6 +375,41 @@ class LineItem(QtWidgets.QGraphicsLineItem):
             | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsFocusable
         )
         self.setPen(PEN_NORMAL)
+
+        # endpoint handles
+        self._start_handle = LineHandle(self, "start")
+        self._end_handle = LineHandle(self, "end")
+        self._start_handle.hide()
+        self._end_handle.hide()
+        self.update_handles()
+
+    def update_handles(self):
+        line = self.line()
+        self._start_handle.setPos(line.p1())
+        self._end_handle.setPos(line.p2())
+
+    def show_handles(self):
+        self.update_handles()
+        self._start_handle.show()
+        self._end_handle.show()
+
+    def hide_handles(self):
+        self._start_handle.hide()
+        self._end_handle.hide()
+
+    def itemChange(self, change, value):  # type: ignore[override]
+        if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
+            if value:
+                self.show_handles()
+            else:
+                self.hide_handles()
+        elif change in (
+            QtWidgets.QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged,
+            QtWidgets.QGraphicsItem.GraphicsItemChange.ItemTransformHasChanged,
+        ):
+            if self.isSelected():
+                self.update_handles()
+        return super().itemChange(change, value)  # type: ignore[misc]
 
     def paint(self, painter, option, widget=None):
         super().paint(painter, option, widget)
