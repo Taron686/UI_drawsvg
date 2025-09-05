@@ -254,6 +254,41 @@ class CanvasView(QtWidgets.QGraphicsView):
                 return
         super().keyPressEvent(event)
 
+    # --- Alignment helpers ---
+    def _align_items(self, items, mode: str):
+        brs = [it.sceneBoundingRect() for it in items]
+        if mode == "grid":
+            size = self._grid_size
+            for it, br in zip(items, brs):
+                new_x = round(br.left() / size) * size
+                new_y = round(br.top() / size) * size
+                it.moveBy(new_x - br.left(), new_y - br.top())
+            return
+        if mode == "left":
+            target = min(br.left() for br in brs)
+            for it, br in zip(items, brs):
+                it.moveBy(target - br.left(), 0)
+        elif mode == "hcenter":
+            target = sum(br.center().x() for br in brs) / len(brs)
+            for it, br in zip(items, brs):
+                it.moveBy(target - br.center().x(), 0)
+        elif mode == "right":
+            target = max(br.right() for br in brs)
+            for it, br in zip(items, brs):
+                it.moveBy(target - br.right(), 0)
+        elif mode == "top":
+            target = min(br.top() for br in brs)
+            for it, br in zip(items, brs):
+                it.moveBy(0, target - br.top())
+        elif mode == "vcenter":
+            target = sum(br.center().y() for br in brs) / len(brs)
+            for it, br in zip(items, brs):
+                it.moveBy(0, target - br.center().y())
+        elif mode == "bottom":
+            target = max(br.bottom() for br in brs)
+            for it, br in zip(items, brs):
+                it.moveBy(0, target - br.bottom())
+
     # --- Context menu for adjusting colors and line width ---
     def contextMenuEvent(self, event: QtGui.QContextMenuEvent):
         pos = event.pos()
@@ -265,6 +300,21 @@ class CanvasView(QtWidgets.QGraphicsView):
         menu = QtWidgets.QMenu(self)
         fill_act = opacity_act = stroke_act = width_act = None
         color_act = size_act = corner_act = None
+
+        selected = self.scene().selectedItems()
+        align_actions = {}
+        if len(selected) >= 2:
+            align_menu = menu.addMenu("Align")
+            align_actions[align_menu.addAction("Left")] = "left"
+            align_actions[align_menu.addAction("Center")] = "hcenter"
+            align_actions[align_menu.addAction("Right")] = "right"
+            align_menu.addSeparator()
+            align_actions[align_menu.addAction("Top")] = "top"
+            align_actions[align_menu.addAction("Middle")] = "vcenter"
+            align_actions[align_menu.addAction("Bottom")] = "bottom"
+            align_menu.addSeparator()
+            align_actions[align_menu.addAction("Snap to grid")] = "grid"
+            menu.addSeparator()
         if isinstance(item, RectItem):
             fill_act = menu.addAction("Set fill color…")
             opacity_act = menu.addAction("Set fill opacity…")
@@ -304,7 +354,9 @@ class CanvasView(QtWidgets.QGraphicsView):
             super().contextMenuEvent(event)
             return
 
-        if action is fill_act:
+        if action in align_actions:
+            self._align_items(selected, align_actions[action])
+        elif action is fill_act:
             brush = item.brush()
             color = QtWidgets.QColorDialog.getColor(brush.color(), self, "Fill color")
             if color.isValid():
