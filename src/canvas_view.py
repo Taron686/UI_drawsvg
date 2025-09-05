@@ -52,7 +52,7 @@ class CanvasView(QtWidgets.QGraphicsView):
         self._grid_size = 20
 
         self._panning = False
-        self._pan_start = QtCore.QPoint()
+        self._pan_start = QtCore.QPointF()
         self._prev_drag_mode = self.dragMode()
 
     def clear_canvas(self):
@@ -138,7 +138,7 @@ class CanvasView(QtWidgets.QGraphicsView):
     def mousePressEvent(self, event: QtGui.QMouseEvent):
         if event.button() == QtCore.Qt.MouseButton.MiddleButton:
             self._panning = True
-            self._pan_start = event.position().toPoint()
+            self._pan_start = event.position()
             self._prev_drag_mode = self.dragMode()
             self.setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
             self.viewport().setCursor(QtCore.Qt.CursorShape.ClosedHandCursor)
@@ -176,14 +176,9 @@ class CanvasView(QtWidgets.QGraphicsView):
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
         if self._panning:
-            delta = event.position().toPoint() - self._pan_start
-            self._pan_start = event.position().toPoint()
-            self.horizontalScrollBar().setValue(
-                self.horizontalScrollBar().value() - delta.x()
-            )
-            self.verticalScrollBar().setValue(
-                self.verticalScrollBar().value() - delta.y()
-            )
+            delta = event.position() - self._pan_start
+            self._pan_start = event.position()
+            self.translate(delta.x(), delta.y())
             event.accept()
             return
         if getattr(self, "_dup_source", None):
