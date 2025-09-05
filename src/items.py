@@ -5,6 +5,7 @@ from constants import PEN_NORMAL, PEN_SELECTED
 
 HANDLE_COLOR = QtGui.QColor("#14b5ff")
 HANDLE_SIZE = 8.0
+HANDLE_OFFSET = 10.0
 
 
 class ResizeHandle(QtWidgets.QGraphicsEllipseItem):
@@ -142,15 +143,16 @@ class ResizableItem:
     def update_handles(self):
         self._ensure_handles()
         rect = self.boundingRect()
+        o = HANDLE_OFFSET
         points = [
-            rect.topLeft(),
-            QtCore.QPointF(rect.center().x(), rect.top()),
-            rect.topRight(),
-            QtCore.QPointF(rect.right(), rect.center().y()),
-            rect.bottomRight(),
-            QtCore.QPointF(rect.center().x(), rect.bottom()),
-            rect.bottomLeft(),
-            QtCore.QPointF(rect.left(), rect.center().y()),
+            rect.topLeft() - QtCore.QPointF(o, o),
+            QtCore.QPointF(rect.center().x(), rect.top() - o),
+            rect.topRight() + QtCore.QPointF(o, -o),
+            QtCore.QPointF(rect.right() + o, rect.center().y()),
+            rect.bottomRight() + QtCore.QPointF(o, o),
+            QtCore.QPointF(rect.center().x(), rect.bottom() + o),
+            rect.bottomLeft() + QtCore.QPointF(-o, o),
+            QtCore.QPointF(rect.left() - o, rect.center().y()),
         ]
         for pt, h in zip(points, self._handles):
             h.setPos(pt)
