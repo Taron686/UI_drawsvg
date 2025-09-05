@@ -33,7 +33,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _build_menu(self):
         file_menu = self.menuBar().addMenu("&Datei")
 
-        act_save_py = QtGui.QAction("Als drawsvg-.py speichern…", self)
+        act_save_py = QtGui.QAction("Save drawsvg-.py", self)
         act_save_py.triggered.connect(self.export_drawsvg_py)
         file_menu.addAction(act_save_py)
 
