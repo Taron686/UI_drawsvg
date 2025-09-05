@@ -88,6 +88,9 @@ class ResizeHandle(QtWidgets.QGraphicsEllipseItem):
         elif isinstance(parent, QtWidgets.QGraphicsEllipseItem):
             parent.setRect(0, 0, rect.width(), rect.height())
             parent.setTransformOriginPoint(rect.width() / 2.0, rect.height() / 2.0)
+        elif isinstance(parent, TriangleItem):
+            parent.set_size(rect.width(), rect.height())
+            parent.setTransformOriginPoint(rect.width() / 2.0, rect.height() / 2.0)
         else:  # fallback for other items using boundingRect
             br = parent.boundingRect()
             sx = rect.width() / br.width() if br.width() else 1.0
@@ -238,6 +241,50 @@ class EllipseItem(ResizableItem, QtWidgets.QGraphicsEllipseItem):
             painter.setPen(PEN_SELECTED)
             painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
             painter.drawEllipse(self.rect())
+            painter.restore()
+
+
+class TriangleItem(ResizableItem, QtWidgets.QGraphicsPolygonItem):
+    def __init__(self, x, y, w, h):
+        QtWidgets.QGraphicsPolygonItem.__init__(self)
+        ResizableItem.__init__(self)
+        self._w = w
+        self._h = h
+        self._update_polygon()
+        self.setPos(x, y)
+        self.setTransformOriginPoint(w / 2.0, h / 2.0)
+        self.setFlags(
+            QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+            | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
+            | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges
+            | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsFocusable
+        )
+        self.setPen(PEN_NORMAL)
+        self.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+
+    def _update_polygon(self):
+        poly = QtGui.QPolygonF(
+            [
+                QtCore.QPointF(self._w / 2.0, 0.0),
+                QtCore.QPointF(0.0, self._h),
+                QtCore.QPointF(self._w, self._h),
+            ]
+        )
+        self.setPolygon(poly)
+
+    def set_size(self, w, h):
+        self._w = w
+        self._h = h
+        self._update_polygon()
+        self.setTransformOriginPoint(w / 2.0, h / 2.0)
+
+    def paint(self, painter, option, widget=None):
+        super().paint(painter, option, widget)
+        if self.isSelected():
+            painter.save()
+            painter.setPen(PEN_SELECTED)
+            painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+            painter.drawPolygon(self.polygon())
             painter.restore()
 
 
