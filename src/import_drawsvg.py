@@ -7,7 +7,7 @@ from typing import Any
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from items import RectItem, EllipseItem, LineItem, TextItem
+from items import RectItem, EllipseItem, LineItem, TextItem, TriangleItem
 
 
 _ROT_RE = re.compile(r"rotate\(([-0-9.]+)\s+([-0-9.]+)\s+([-0-9.]+)\)")
@@ -23,7 +23,7 @@ def _parse_call(line: str) -> tuple[list[Any], dict[str, Any]]:
 
 
 def _apply_style(item: QtWidgets.QGraphicsItem, kwargs: dict[str, Any]) -> None:
-    if isinstance(item, (QtWidgets.QGraphicsRectItem, QtWidgets.QGraphicsEllipseItem, LineItem)):
+    if isinstance(item, (QtWidgets.QGraphicsRectItem, QtWidgets.QGraphicsEllipseItem, LineItem, TriangleItem)):
         if kwargs.get("fill") == "none":
             item.setBrush(QtCore.Qt.BrushStyle.NoBrush)
         elif "fill" in kwargs:
@@ -104,6 +104,21 @@ def import_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
                 if "transform" in kwargs:
                     item.setRotation(_parse_rotate(kwargs["transform"]))
                 item.setData(0, "Circle")
+                scene.addItem(item)
+            elif line.startswith("_tri = draw.Lines("):
+                args, kwargs = _parse_call(line)
+                coords = [float(a) for a in args]
+                xs = coords[0::2]
+                ys = coords[1::2]
+                x = min(xs)
+                y = min(ys)
+                w = max(xs) - x
+                h = max(ys) - y
+                item = TriangleItem(x, y, w, h)
+                _apply_style(item, kwargs)
+                if "transform" in kwargs:
+                    item.setRotation(_parse_rotate(kwargs["transform"]))
+                item.setData(0, "Triangle")
                 scene.addItem(item)
             elif line.startswith("_line = draw.Line("):
                 args, kwargs = _parse_call(line)

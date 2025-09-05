@@ -127,6 +127,41 @@ def export_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
             lines.append("    d.append(_circ)")
             lines.append("")
 
+        elif shape == "Triangle" and isinstance(it, QtWidgets.QGraphicsPolygonItem):
+            poly = it.polygon()
+            x = it.pos().x()
+            y = it.pos().y()
+            pts = []
+            for p in poly:
+                pts.extend([x + p.x(), y + p.y()])
+            br = it.boundingRect()
+            cx = x + br.width() / 2.0
+            cy = y + br.height() / 2.0
+            ang = it.rotation()
+            brush = it.brush()
+            pen = it.pen()
+            attrs = []
+            if brush.style() == QtCore.Qt.BrushStyle.NoBrush:
+                attrs.append("fill='none'")
+            else:
+                bcol = brush.color()
+                attrs.append(f"fill='{bcol.name()}'")
+                attrs.append(f"fill_opacity={bcol.alphaF():.2f}")
+            attrs.append(f"stroke='{pen.color().name()}'")
+            attrs.append(f"stroke_width={pen.widthF():.2f}")
+            attr_str = ", ".join(attrs)
+            coord_str = ", ".join(f"{v:.2f}" for v in pts)
+            if abs(ang) > 1e-6:
+                lines.append(
+                    f"    _tri = draw.Lines({coord_str}, close=True, {attr_str}, transform='rotate({ang:.2f} {cx:.2f} {cy:.2f})')"
+                )
+            else:
+                lines.append(
+                    f"    _tri = draw.Lines({coord_str}, close=True, {attr_str})"
+                )
+            lines.append("    d.append(_tri)")
+            lines.append("")
+
         elif shape == "Line" and isinstance(it, QtWidgets.QGraphicsLineItem):
             line = it.line()
             x = it.pos().x()

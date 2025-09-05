@@ -1,12 +1,13 @@
 from PySide6 import QtCore, QtGui
 
 PALETTE_MIME = "application/x-drawsvg-shape"
-SHAPES = ("Rectangle", "Ellipse", "Circle", "Line", "Text")
+SHAPES = ("Rectangle", "Ellipse", "Circle", "Triangle", "Line", "Text")
 
 DEFAULTS = {
     "Rectangle": (160.0, 100.0),   # w, h
     "Ellipse":   (160.0, 100.0),   # w, h
     "Circle":    (100.0, 100.0),   # diameter, diameter
+    "Triangle":  (160.0, 100.0),   # w, h
     "Line":      (150.0, 0.0),     # length, (unused)
     "Text":      (100.0, 30.0),    # placeholder bbox
 }

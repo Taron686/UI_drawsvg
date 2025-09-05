@@ -27,7 +27,7 @@ python src/main.py
 ```
 
 ## UI Features
-* **Create shapes:** Drag rectangles, ellipses, circles, lines and text from the palette onto the canvas.
+* **Create shapes:** Drag rectangles, ellipses, circles, triangles, lines and text from the palette onto the canvas.
 * **Mouse adjustments:**
   * `Ctrl` + mouse wheel changes the size of selected objects.
   * `Alt` + mouse wheel rotates selected objects.

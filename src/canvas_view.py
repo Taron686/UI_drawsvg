@@ -1,7 +1,7 @@
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from constants import PALETTE_MIME, SHAPES, DEFAULTS
-from items import RectItem, EllipseItem, LineItem, TextItem
+from items import RectItem, EllipseItem, LineItem, TextItem, TriangleItem
 
 
 class CornerRadiusDialog(QtWidgets.QDialog):
@@ -104,6 +104,8 @@ class CanvasView(QtWidgets.QGraphicsView):
             item = RectItem(x, y, w, h)
         elif shape in ("Circle", "Ellipse"):
             item = EllipseItem(x, y, w, h)
+        elif shape == "Triangle":
+            item = TriangleItem(x, y, w, h)
         elif shape == "Line":
             item = LineItem(x, y, w)
         else:  # "Text"
@@ -150,6 +152,11 @@ class CanvasView(QtWidgets.QGraphicsView):
                     new_h = max(10.0, r.height() * factor)
                     it.setRect(0, 0, new_w, new_h)
                     it.setTransformOriginPoint(new_w / 2.0, new_h / 2.0)
+                elif isinstance(it, TriangleItem):
+                    br = it.boundingRect()
+                    new_w = max(10.0, br.width() * factor)
+                    new_h = max(10.0, br.height() * factor)
+                    it.set_size(new_w, new_h)
                 elif isinstance(it, LineItem):
                     it._length = max(10.0, it._length * factor)
                     it.setLine(0.0, 0.0, it._length, 0.0)
@@ -196,6 +203,12 @@ class CanvasView(QtWidgets.QGraphicsView):
             stroke_act = menu.addAction("Set stroke color…")
             width_act = menu.addAction("Set stroke width…")
         elif isinstance(item, QtWidgets.QGraphicsEllipseItem):
+            fill_act = menu.addAction("Set fill color…")
+            opacity_act = menu.addAction("Set fill opacity…")
+            menu.addSeparator()
+            stroke_act = menu.addAction("Set stroke color…")
+            width_act = menu.addAction("Set stroke width…")
+        elif isinstance(item, TriangleItem):
             fill_act = menu.addAction("Set fill color…")
             opacity_act = menu.addAction("Set fill opacity…")
             menu.addSeparator()
