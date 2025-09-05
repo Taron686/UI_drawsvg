@@ -374,8 +374,11 @@ class LineHandle(QtWidgets.QGraphicsEllipseItem):
 
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
         parent = self.parentItem()
+        mods = event.modifiers()
         if self._endpoint == "start":
             new_start = event.scenePos()
+            if not mods & QtCore.Qt.KeyboardModifier.AltModifier:
+                new_start = snap_to_grid(parent, new_start)
             end_scene = self._line_end_scene
             parent.setPos(new_start)
             parent.setLine(
@@ -387,6 +390,8 @@ class LineHandle(QtWidgets.QGraphicsEllipseItem):
         else:  # end handle
             start_scene = self._line_start_scene
             new_end = event.scenePos()
+            if not mods & QtCore.Qt.KeyboardModifier.AltModifier:
+                new_end = snap_to_grid(parent, new_end)
             parent.setPos(start_scene)
             parent.setLine(
                 0.0,
