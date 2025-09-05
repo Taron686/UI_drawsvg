@@ -3,6 +3,10 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from constants import PALETTE_MIME, SHAPES, DEFAULTS
 from items import RectItem, EllipseItem, LineItem, TextItem, TriangleItem
 
+# Minimum mouse movement (in scene coordinates) required before
+# showing duplicates when Ctrl+dragging selected items.
+DUPLICATE_DRAG_THRESHOLD = 10.0
+
 
 class CornerRadiusDialog(QtWidgets.QDialog):
     def __init__(self, radius: float, parent=None):
@@ -124,9 +128,28 @@ class CanvasView(QtWidgets.QGraphicsView):
         ):
             selected = self.scene().selectedItems()
             if selected:
+                # Store initial state but postpone cloning until the mouse
+                # has moved far enough to avoid duplicates appearing in place.
+                self._dup_source = list(selected)
+                self._dup_items = None
+                self._dup_orig = None
+                self._dup_start = self.mapToScene(event.position().toPoint())
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent):
+        if getattr(self, "_dup_source", None):
+            pos = self.mapToScene(event.position().toPoint())
+            delta = pos - self._dup_start
+            if self._dup_items is None:
+                # Only create clones after surpassing the threshold.
+                if delta.manhattanLength() < DUPLICATE_DRAG_THRESHOLD:
+                    event.accept()
+                    return
                 self._dup_items = []
                 self._dup_orig = []
-                for it in selected:
+                for it in self._dup_source:
                     clone = self._clone_item(it)
                     if clone:
                         self.scene().addItem(clone)
@@ -135,15 +158,6 @@ class CanvasView(QtWidgets.QGraphicsView):
                 self.scene().clearSelection()
                 for it in self._dup_items:
                     it.setSelected(True)
-                self._dup_start = self.mapToScene(event.position().toPoint())
-                event.accept()
-                return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event: QtGui.QMouseEvent):
-        if getattr(self, "_dup_items", None):
-            pos = self.mapToScene(event.position().toPoint())
-            delta = pos - self._dup_start
             for it, start in zip(self._dup_items, self._dup_orig):
                 it.setPos(start + delta)
             event.accept()
@@ -151,14 +165,18 @@ class CanvasView(QtWidgets.QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
-        if (
-            event.button() == QtCore.Qt.MouseButton.LeftButton
-            and getattr(self, "_dup_items", None)
-        ):
-            self._dup_items = []
-            self._dup_orig = []
-            event.accept()
-            return
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            if getattr(self, "_dup_items", None):
+                self._dup_items = []
+                self._dup_orig = []
+                self._dup_source = []
+                event.accept()
+                return
+            if getattr(self, "_dup_source", None):
+                # Ctrl+click without enough movement -> no duplication
+                self._dup_source = []
+                event.accept()
+                return
         super().mouseReleaseEvent(event)
 
     def _clone_item(self, item: QtWidgets.QGraphicsItem):
