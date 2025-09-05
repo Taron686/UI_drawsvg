@@ -122,20 +122,34 @@ class CanvasView(QtWidgets.QGraphicsView):
 
     # --- Duplicate selected items with Ctrl+drag ---
     def mousePressEvent(self, event: QtGui.QMouseEvent):
-        if (
-            event.button() == QtCore.Qt.MouseButton.LeftButton
-            and (event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier)
-        ):
-            selected = self.scene().selectedItems()
-            if selected:
-                # Store initial state but postpone cloning until the mouse
-                # has moved far enough to avoid duplicates appearing in place.
-                self._dup_source = list(selected)
-                self._dup_items = None
-                self._dup_orig = None
-                self._dup_start = self.mapToScene(event.position().toPoint())
-                event.accept()
-                return
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            mods = event.modifiers()
+            if mods & (
+                QtCore.Qt.KeyboardModifier.ControlModifier
+                | QtCore.Qt.KeyboardModifier.ShiftModifier
+            ):
+                item = self.itemAt(event.pos())
+                if item:
+                    if (
+                        mods & QtCore.Qt.KeyboardModifier.ControlModifier
+                        and item.isSelected()
+                    ):
+                        selected = self.scene().selectedItems()
+                        if selected:
+                            # Store initial state but postpone cloning until the mouse
+                            # has moved far enough to avoid duplicates appearing in place.
+                            self._dup_source = list(selected)
+                            self._dup_items = None
+                            self._dup_orig = None
+                            self._dup_start = self.mapToScene(
+                                event.position().toPoint()
+                            )
+                        event.accept()
+                        return
+                    else:
+                        item.setSelected(True)
+                        event.accept()
+                        return
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):

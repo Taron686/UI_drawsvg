@@ -30,6 +30,7 @@ python src/main.py
 * **Create shapes:** Drag rectangles, ellipses, circles, triangles, lines and text from the palette onto the canvas.
 * **Mouse adjustments:**
   * `Ctrl` + left drag duplicates selected objects.
+  * `Ctrl` or `Shift` + left click adds items to the current selection.
   * `Alt` + mouse wheel rotates selected objects.
 * **Context menu:** Right-click an object to modify colors, line width or text size.
 * **Export/Import:** Use the `File` menu to export scenes as `drawsvg` Python files or load them back again.
