@@ -41,6 +41,12 @@ def export_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
                 attrs.append(f"fill_opacity={bcol.alphaF():.2f}")
             attrs.append(f"stroke='{pen.color().name()}'")
             attrs.append(f"stroke_width={pen.widthF():.2f}")
+            rx = getattr(it, "rx", 0)
+            ry = getattr(it, "ry", 0)
+            if rx:
+                attrs.append(f"rx={rx:.2f}")
+            if ry:
+                attrs.append(f"ry={ry:.2f}")
             attr_str = ", ".join(attrs)
             if abs(ang) > 1e-6:
                 lines.append(

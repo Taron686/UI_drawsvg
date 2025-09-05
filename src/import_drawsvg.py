@@ -68,7 +68,13 @@ def import_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
             elif line.startswith("_rect = draw.Rectangle("):
                 args, kwargs = _parse_call(line)
                 x, y, w, h = map(float, args[:4])
-                item = RectItem(x, y, w, h)
+                rx = float(kwargs.get("rx", 0.0))
+                ry = float(kwargs.get("ry", 0.0))
+                if "rx" in kwargs and "ry" not in kwargs:
+                    ry = rx
+                if "ry" in kwargs and "rx" not in kwargs:
+                    rx = ry
+                item = RectItem(x, y, w, h, rx, ry)
                 _apply_style(item, kwargs)
                 if "transform" in kwargs:
                     item.setRotation(_parse_rotate(kwargs["transform"]))

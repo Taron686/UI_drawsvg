@@ -4,7 +4,7 @@ from constants import PEN_NORMAL, PEN_SELECTED
 
 
 class RectItem(QtWidgets.QGraphicsRectItem):
-    def __init__(self, x, y, w, h):
+    def __init__(self, x, y, w, h, rx: float = 0.0, ry: float = 0.0):
         super().__init__(0, 0, w, h)
         self.setPos(x, y)
         self.setTransformOriginPoint(w / 2.0, h / 2.0)
@@ -16,14 +16,24 @@ class RectItem(QtWidgets.QGraphicsRectItem):
         )
         self.setPen(PEN_NORMAL)
         self.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+        self.rx = rx
+        self.ry = ry
 
     def paint(self, painter, option, widget=None):
-        super().paint(painter, option, widget)
+        if self.rx or self.ry:
+            painter.setPen(self.pen())
+            painter.setBrush(self.brush())
+            painter.drawRoundedRect(self.rect(), self.rx, self.ry)
+        else:
+            super().paint(painter, option, widget)
         if self.isSelected():
             painter.save()
             painter.setPen(PEN_SELECTED)
             painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
-            painter.drawRect(self.rect())
+            if self.rx or self.ry:
+                painter.drawRoundedRect(self.rect(), self.rx, self.ry)
+            else:
+                painter.drawRect(self.rect())
             painter.restore()
 
 

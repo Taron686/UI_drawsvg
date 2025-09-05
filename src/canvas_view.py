@@ -93,6 +93,10 @@ class CanvasView(QtWidgets.QGraphicsView):
                     new_h = max(10.0, r.height() * factor)
                     it.setRect(0, 0, new_w, new_h)
                     it.setTransformOriginPoint(new_w / 2.0, new_h / 2.0)
+                    if hasattr(it, "rx"):
+                        it.rx *= factor
+                    if hasattr(it, "ry"):
+                        it.ry *= factor
                 elif isinstance(it, QtWidgets.QGraphicsEllipseItem):
                     r = it.rect()
                     new_w = max(10.0, r.width() * factor)
@@ -125,8 +129,15 @@ class CanvasView(QtWidgets.QGraphicsView):
 
         menu = QtWidgets.QMenu(self)
         fill_act = opacity_act = stroke_act = width_act = None
-        color_act = size_act = None
-        if isinstance(item, (QtWidgets.QGraphicsRectItem, QtWidgets.QGraphicsEllipseItem)):
+        color_act = size_act = corner_act = None
+        if isinstance(item, RectItem):
+            fill_act = menu.addAction("Set fill color…")
+            opacity_act = menu.addAction("Set fill opacity…")
+            corner_act = menu.addAction("Set corner radius…")
+            menu.addSeparator()
+            stroke_act = menu.addAction("Set stroke color…")
+            width_act = menu.addAction("Set stroke width…")
+        elif isinstance(item, QtWidgets.QGraphicsEllipseItem):
             fill_act = menu.addAction("Set fill color…")
             opacity_act = menu.addAction("Set fill opacity…")
             menu.addSeparator()
@@ -179,6 +190,14 @@ class CanvasView(QtWidgets.QGraphicsView):
                 pen.setWidthF(val)
                 item.setPen(pen)
                 item.update()
+        elif action is corner_act and isinstance(item, RectItem):
+            rx_val, ok = QtWidgets.QInputDialog.getDouble(self, "Corner radius", "rx:", item.rx, 0.0, 1000.0, 1)
+            if ok:
+                ry_val, ok2 = QtWidgets.QInputDialog.getDouble(self, "Corner radius", "ry:", item.ry, 0.0, 1000.0, 1)
+                if ok2:
+                    item.rx = rx_val
+                    item.ry = ry_val
+                    item.update()
         elif action is color_act:
             color = QtWidgets.QColorDialog.getColor(item.defaultTextColor(), self, "Text color")
             if color.isValid():
