@@ -44,6 +44,9 @@ class CanvasView(QtWidgets.QGraphicsView):
         self.setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
         self.setAcceptDrops(True)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
+        self.setViewportUpdateMode(
+            QtWidgets.QGraphicsView.ViewportUpdateMode.FullViewportUpdate
+        )
 
         scene = QtWidgets.QGraphicsScene(self)
         self._scene_padding = 200
