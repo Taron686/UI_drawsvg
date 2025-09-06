@@ -76,9 +76,12 @@ def import_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
         for raw in lines:
             line = raw.strip()
             if line.startswith("d = draw.Drawing("):
-                args, _ = _parse_call(line)
+                args, kwargs = _parse_call(line)
                 if len(args) >= 2:
-                    scene.setSceneRect(0, 0, float(args[0]), float(args[1]))
+                    ox = oy = 0.0
+                    if "origin" in kwargs and isinstance(kwargs["origin"], (tuple, list)):
+                        ox, oy = map(float, kwargs["origin"][:2])
+                    scene.setSceneRect(float(ox), float(oy), float(args[0]), float(args[1]))
             elif line.startswith("_rect = draw.Rectangle("):
                 args, kwargs = _parse_call(line)
                 x, y, w, h = map(float, args[:4])

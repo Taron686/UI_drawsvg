@@ -5,9 +5,11 @@ from items import LineItem
 
 
 def export_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget | None = None):
-    rect = scene.sceneRect()
+    rect = scene.itemsBoundingRect()
     width = int(rect.width())
     height = int(rect.height())
+    ox = int(rect.x())
+    oy = int(rect.y())
 
     items = [it for it in scene.items() if it.data(0) in SHAPES]
     items.reverse()
@@ -17,7 +19,7 @@ def export_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
     lines.append("import drawsvg as draw")
     lines.append("")
     lines.append("def build_drawing():")
-    lines.append(f"    d = draw.Drawing({width}, {height}, origin=(0, 0))")
+    lines.append(f"    d = draw.Drawing({width}, {height}, origin=({ox}, {oy}))")
     lines.append("")
 
     for it in items:
