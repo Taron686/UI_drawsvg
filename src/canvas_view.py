@@ -327,7 +327,7 @@ class CanvasView(QtWidgets.QGraphicsView):
             clone = LineItem(
                 item.x(),
                 item.y(),
-                item._length,
+                points=[QtCore.QPointF(p) for p in item._points],
                 arrow_start=getattr(item, "arrow_start", False),
                 arrow_end=getattr(item, "arrow_end", False),
             )

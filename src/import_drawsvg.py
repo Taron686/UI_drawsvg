@@ -139,31 +139,53 @@ def import_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget
                 if args:
                     cmd = args[0]
                     parts = cmd.split()
-                    if len(parts) >= 6 and parts[0] == "M" and parts[3] == "L":
-                        x1 = float(parts[1])
-                        y1 = float(parts[2])
-                        x2 = float(parts[4])
-                        y2 = float(parts[5])
-                        dx, dy = x2 - x1, y2 - y1
-                        length = math.hypot(dx, dy)
-                        angle = math.degrees(math.atan2(dy, dx))
-                        if "transform" in kwargs:
-                            angle = _parse_rotate(kwargs["transform"])
-                        cx = (x1 + x2) / 2.0
-                        cy = (y1 + y2) / 2.0
-                        arrow_start = "marker_start" in kwargs
-                        arrow_end = "marker_end" in kwargs
-                        item = LineItem(
-                            cx - length / 2.0,
-                            cy,
-                            length,
-                            arrow_start=arrow_start,
-                            arrow_end=arrow_end,
-                        )
-                        _apply_style(item, kwargs)
-                        item.setRotation(angle)
-                        item.setData(0, "Arrow" if arrow_start or arrow_end else "Line")
-                        scene.addItem(item)
+                    if len(parts) >= 6 and parts[0] == "M":
+                        coords: list[float] = []
+                        i = 1
+                        while i < len(parts):
+                            coords.append(float(parts[i]))
+                            coords.append(float(parts[i + 1]))
+                            i += 2
+                            if i < len(parts) and parts[i] == "L":
+                                i += 1
+                            else:
+                                break
+                        if len(coords) >= 4:
+                            pts = [
+                                QtCore.QPointF(coords[i], coords[i + 1])
+                                for i in range(0, len(coords), 2)
+                            ]
+                            arrow_start = "marker_start" in kwargs
+                            arrow_end = "marker_end" in kwargs
+                            angle = 0.0
+                            if "transform" in kwargs:
+                                angle = _parse_rotate(kwargs["transform"])
+                            item = LineItem(
+                                0.0,
+                                0.0,
+                                points=pts,
+                                arrow_start=arrow_start,
+                                arrow_end=arrow_end,
+                            )
+                            _apply_style(item, kwargs)
+                            item.setRotation(angle)
+                            item.setData(0, "Arrow" if arrow_start or arrow_end else "Line")
+                            scene.addItem(item)
+            elif line.startswith("_line = draw.Lines("):
+                args, kwargs = _parse_call(line)
+                coords = list(map(float, args))
+                pts = [
+                    QtCore.QPointF(coords[i], coords[i + 1])
+                    for i in range(0, len(coords), 2)
+                ]
+                angle = 0.0
+                if "transform" in kwargs:
+                    angle = _parse_rotate(kwargs["transform"])
+                item = LineItem(0.0, 0.0, points=pts)
+                _apply_style(item, kwargs)
+                item.setRotation(angle)
+                item.setData(0, "Line")
+                scene.addItem(item)
             elif line.startswith("_line = draw.Line("):
                 args, kwargs = _parse_call(line)
                 x1, y1, x2, y2 = map(float, args[:4])
