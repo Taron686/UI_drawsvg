@@ -1,6 +1,7 @@
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from constants import SHAPES
+from items import LineItem
 
 
 def export_drawsvg_py(scene: QtWidgets.QGraphicsScene, parent: QtWidgets.QWidget | None = None):
