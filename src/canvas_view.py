@@ -112,6 +112,11 @@ class CanvasView(QtWidgets.QGraphicsView):
             # ensure newly exposed areas are repainted so drag handles don't leave trails
             self.viewport().update()
 
+    def resizeEvent(self, event: QtGui.QResizeEvent):
+        """Ensure scene rect grows with the view."""
+        super().resizeEvent(event)
+        self._update_scene_rect()
+
     # --- Drag and drop from the palette ---
     def dragEnterEvent(self, event: QtGui.QDragEnterEvent):
         md = event.mimeData()
