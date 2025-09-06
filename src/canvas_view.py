@@ -106,6 +106,8 @@ class CanvasView(QtWidgets.QGraphicsView):
             new_rect = combined.adjusted(-padding, -padding, padding, padding)
         if new_rect != scene.sceneRect():
             scene.setSceneRect(new_rect)
+            # ensure newly exposed areas are repainted so drag handles don't leave trails
+            self.viewport().update()
 
     # --- Drag and drop from the palette ---
     def dragEnterEvent(self, event: QtGui.QDragEnterEvent):
