@@ -360,8 +360,9 @@ class LineHandle(QtWidgets.QGraphicsEllipseItem):
         parent: "LineItem" = self.parentItem()  # type: ignore[assignment]
         if self.is_mid:
             parent.insert_point(self.index + 1, self.pos())
+            parent._mid_handles.pop(self.index)
             self.is_mid = False
-            self.index += 1
+            parent._handles.insert(self.index + 1, self)
             parent.update_handles()
         flags = parent.flags()
         self._parent_was_movable = bool(
