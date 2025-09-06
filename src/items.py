@@ -338,9 +338,9 @@ class ResizableItem:
 
 
 class LineHandle(QtWidgets.QGraphicsEllipseItem):
-    """Handle placed at each end of a line for resizing/rotating."""
+    """Handle for editing line/polyline points and midpoints."""
 
-    def __init__(self, parent: QtWidgets.QGraphicsLineItem, endpoint: str):
+    def __init__(self, parent: "LineItem", index: int, is_mid: bool = False):
         super().__init__(
             -HANDLE_SIZE / 2.0,
             -HANDLE_SIZE / 2.0,
@@ -352,16 +352,18 @@ class LineHandle(QtWidgets.QGraphicsEllipseItem):
         self.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
         self.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
         self.setCursor(QtCore.Qt.CursorShape.SizeAllCursor)
-        self._endpoint = endpoint  # "start" or "end"
-        self._line_start_scene = QtCore.QPointF()
-        self._line_end_scene = QtCore.QPointF()
+        self.index = index
+        self.is_mid = is_mid
         self._parent_was_movable = False
 
     def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
-        parent = self.parentItem()
-        line = parent.line()
-        self._line_start_scene = parent.mapToScene(line.p1())
-        self._line_end_scene = parent.mapToScene(line.p2())
+        parent: "LineItem" = self.parentItem()  # type: ignore[assignment]
+        if self.is_mid:
+            parent.insert_point(self.index + 1, self.pos())
+            parent._mid_handles.pop(self.index)
+            self.is_mid = False
+            parent._handles.insert(self.index + 1, self)
+            parent.update_handles()
         flags = parent.flags()
         self._parent_was_movable = bool(
             flags & QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
@@ -370,49 +372,21 @@ class LineHandle(QtWidgets.QGraphicsEllipseItem):
             parent.setFlag(
                 QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False
             )
+        parent._moving_index = self.index
         event.accept()
 
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
-        parent = self.parentItem()
-        mods = event.modifiers()
-        if self._endpoint == "start":
-            new_start = event.scenePos()
-            if not mods & QtCore.Qt.KeyboardModifier.AltModifier:
-                new_start = snap_to_grid(parent, new_start)
-            end_scene = self._line_end_scene
-            parent.setPos(new_start)
-            parent.setLine(
-                0.0,
-                0.0,
-                end_scene.x() - new_start.x(),
-                end_scene.y() - new_start.y(),
-            )
-        else:  # end handle
-            start_scene = self._line_start_scene
-            new_end = event.scenePos()
-            if not mods & QtCore.Qt.KeyboardModifier.AltModifier:
-                new_end = snap_to_grid(parent, new_end)
-            parent.setPos(start_scene)
-            parent.setLine(
-                0.0,
-                0.0,
-                new_end.x() - start_scene.x(),
-                new_end.y() - start_scene.y(),
-            )
-        line = parent.line()
-        parent._length = line.length()
-        mid = QtCore.QPointF((line.x1() + line.x2()) / 2.0, (line.y1() + line.y2()) / 2.0)
-        parent.setTransformOriginPoint(mid)
-        parent.update_handles()
-        event.accept()
+        parent: "LineItem" = self.parentItem()  # type: ignore[assignment]
+        parent._handle_move(event)
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent):
-        parent = self.parentItem()
+        parent: "LineItem" = self.parentItem()  # type: ignore[assignment]
         if self._parent_was_movable:
             parent.setFlag(
                 QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True
             )
             self._parent_was_movable = False
+        parent._moving_index = None
         event.accept()
 
 
@@ -520,12 +494,18 @@ class TriangleItem(ResizableItem, QtWidgets.QGraphicsPolygonItem):
             painter.restore()
 
 
-class LineItem(QtWidgets.QGraphicsLineItem):
-    def __init__(self, x, y, length, arrow_start: bool = False, arrow_end: bool = False):
-        super().__init__(0.0, 0.0, length, 0.0)
-        self._length = length
+class LineItem(QtWidgets.QGraphicsPathItem):
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        length: float | None = None,
+        arrow_start: bool = False,
+        arrow_end: bool = False,
+        points: list[QtCore.QPointF] | None = None,
+    ):
+        super().__init__()
         self.setPos(x, y)
-        self.setTransformOriginPoint(length / 2.0, 0.0)
         self.setFlags(
             QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
             | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
@@ -536,13 +516,51 @@ class LineItem(QtWidgets.QGraphicsLineItem):
         self.arrow_start = arrow_start
         self.arrow_end = arrow_end
         self._arrow_size = 10.0
-
-        # endpoint handles
-        self._start_handle = LineHandle(self, "start")
-        self._end_handle = LineHandle(self, "end")
-        self._start_handle.hide()
-        self._end_handle.hide()
+        if points is not None:
+            self._points = [QtCore.QPointF(p) for p in points]
+        else:
+            self._points = [QtCore.QPointF(0.0, 0.0), QtCore.QPointF(length or 0.0, 0.0)]
+        self._moving_index: int | None = None
+        self._handles: list[LineHandle] = []
+        self._mid_handles: list[LineHandle] = []
+        self._update_path()
         self.update_handles()
+        self.hide_handles()
+
+    # length of entire polyline
+    def _update_length(self) -> None:
+        total = 0.0
+        for i in range(len(self._points) - 1):
+            total += QtCore.QLineF(self._points[i], self._points[i + 1]).length()
+        self._length = total
+
+    def _compute_center(self) -> QtCore.QPointF:
+        br = self.path().boundingRect()
+        return br.center()
+
+    def _update_path(self) -> None:
+        path = QtGui.QPainterPath(self._points[0])
+        for p in self._points[1:]:
+            path.lineTo(p)
+        self.setPath(path)
+        self._update_length()
+        self.setTransformOriginPoint(self._compute_center())
+
+    def insert_point(self, index: int, pos: QtCore.QPointF) -> None:
+        self._points.insert(index, QtCore.QPointF(pos))
+        self._update_path()
+
+    def _handle_move(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:
+        if self._moving_index is None:
+            return
+        mods = event.modifiers()
+        new_pos = event.scenePos()
+        if not mods & QtCore.Qt.KeyboardModifier.AltModifier:
+            new_pos = snap_to_grid(self, new_pos)
+        self._points[self._moving_index] = self.mapFromScene(new_pos)
+        self._update_path()
+        self.update_handles()
+        event.accept()
 
     def set_arrow_start(self, val: bool) -> None:
         if self.arrow_start != val:
@@ -563,19 +581,43 @@ class LineItem(QtWidgets.QGraphicsLineItem):
             return br.adjusted(-extra, -extra, extra, extra)
         return br
 
-    def update_handles(self):
-        line = self.line()
-        self._start_handle.setPos(line.p1())
-        self._end_handle.setPos(line.p2())
+    def update_handles(self) -> None:
+        # vertex handles
+        while len(self._handles) < len(self._points):
+            h = LineHandle(self, len(self._handles))
+            self._handles.append(h)
+        while len(self._handles) > len(self._points):
+            h = self._handles.pop()
+            h.setParentItem(None)
+        for i, p in enumerate(self._points):
+            h = self._handles[i]
+            h.index = i
+            h.is_mid = False
+            h.setPos(p)
+        # midpoint handles
+        segs = len(self._points) - 1
+        while len(self._mid_handles) < segs:
+            h = LineHandle(self, len(self._mid_handles), is_mid=True)
+            self._mid_handles.append(h)
+        while len(self._mid_handles) > segs:
+            h = self._mid_handles.pop()
+            h.setParentItem(None)
+        for i in range(segs):
+            p1, p2 = self._points[i], self._points[i + 1]
+            mid = QtCore.QPointF((p1.x() + p2.x()) / 2.0, (p1.y() + p2.y()) / 2.0)
+            h = self._mid_handles[i]
+            h.index = i
+            h.is_mid = True
+            h.setPos(mid)
 
-    def show_handles(self):
+    def show_handles(self) -> None:
         self.update_handles()
-        self._start_handle.show()
-        self._end_handle.show()
+        for h in self._handles + self._mid_handles:
+            h.show()
 
-    def hide_handles(self):
-        self._start_handle.hide()
-        self._end_handle.hide()
+    def hide_handles(self) -> None:
+        for h in self._handles + self._mid_handles:
+            h.hide()
 
     def itemChange(self, change, value):  # type: ignore[override]
         if change == QtWidgets.QGraphicsItem.GraphicsItemChange.ItemPositionChange:
@@ -613,25 +655,25 @@ class LineItem(QtWidgets.QGraphicsLineItem):
 
     def paint(self, painter, option, widget=None):
         super().paint(painter, option, widget)
-        line = self.line()
+        pts = self._points
         if self.arrow_start or self.arrow_end:
             painter.save()
             painter.setPen(self.pen())
             painter.setBrush(self.pen().color())
-            if self.arrow_start:
-                self._draw_arrow_head(painter, line.p2(), line.p1())
-            if self.arrow_end:
-                self._draw_arrow_head(painter, line.p1(), line.p2())
+            if self.arrow_start and len(pts) >= 2:
+                self._draw_arrow_head(painter, pts[1], pts[0])
+            if self.arrow_end and len(pts) >= 2:
+                self._draw_arrow_head(painter, pts[-2], pts[-1])
             painter.restore()
         if self.isSelected():
             painter.save()
             painter.setPen(PEN_SELECTED)
             painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
-            painter.drawLine(line)
-            if self.arrow_start:
-                self._draw_arrow_head(painter, line.p2(), line.p1())
-            if self.arrow_end:
-                self._draw_arrow_head(painter, line.p1(), line.p2())
+            painter.drawPath(self.path())
+            if self.arrow_start and len(pts) >= 2:
+                self._draw_arrow_head(painter, pts[1], pts[0])
+            if self.arrow_end and len(pts) >= 2:
+                self._draw_arrow_head(painter, pts[-2], pts[-1])
             painter.restore()
 
 
