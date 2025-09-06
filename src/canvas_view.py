@@ -46,7 +46,14 @@ class CanvasView(QtWidgets.QGraphicsView):
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
         scene = QtWidgets.QGraphicsScene(self)
-        scene.setSceneRect(0, 0, 1000, 700)
+        self._scene_padding = 200
+        scene.setSceneRect(
+            -self._scene_padding,
+            -self._scene_padding,
+            self._scene_padding * 2,
+            self._scene_padding * 2,
+        )
+        scene.changed.connect(self._update_scene_rect)
         self.setScene(scene)
         self.setBackgroundBrush(QtGui.QColor("#fafafa"))
         self._grid_size = 20
@@ -60,6 +67,7 @@ class CanvasView(QtWidgets.QGraphicsView):
     def clear_canvas(self):
         """Remove all items from the scene."""
         self.scene().clear()
+        self._update_scene_rect()
 
     def drawBackground(self, painter: QtGui.QPainter, rect: QtCore.QRectF):
         super().drawBackground(painter, rect)
@@ -77,6 +85,27 @@ class CanvasView(QtWidgets.QGraphicsView):
         pen = QtGui.QPen(QtGui.QColor("#D0D0D0"))
         painter.setPen(pen)
         painter.drawLines(lines)
+
+    def _update_scene_rect(self):
+        scene = self.scene()
+        padding = self._scene_padding
+        items_rect = scene.itemsBoundingRect()
+        viewport_rect = self.mapToScene(self.viewport().rect()).boundingRect()
+        if items_rect.isNull():
+            combined = viewport_rect
+        else:
+            combined = items_rect.united(viewport_rect)
+        if combined.isNull():
+            new_rect = QtCore.QRectF(
+                -padding,
+                -padding,
+                padding * 2,
+                padding * 2,
+            )
+        else:
+            new_rect = combined.adjusted(-padding, -padding, padding, padding)
+        if new_rect != scene.sceneRect():
+            scene.setSceneRect(new_rect)
 
     # --- Drag and drop from the palette ---
     def dragEnterEvent(self, event: QtGui.QDragEnterEvent):
@@ -134,6 +163,7 @@ class CanvasView(QtWidgets.QGraphicsView):
         item.setData(0, shape)  # for export
         self.scene().addItem(item)
         item.setSelected(True)
+        self._update_scene_rect()
         event.acceptProposedAction()
 
     # --- Duplicate selected items with Ctrl+drag ---
@@ -323,6 +353,7 @@ class CanvasView(QtWidgets.QGraphicsView):
             factor = 1.2 if delta > 0 else 1 / 1.2
             self.scale(factor, factor)
             self.setTransformationAnchor(anchor)
+            self._update_scene_rect()
             event.accept()
             return
         super().wheelEvent(event)
